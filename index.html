@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#13131F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Filament Tracker">
+<title>🧵 Filament Tracker</title>
+<link rel="manifest" href="data:application/json;base64,">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;background:#13131F;color:#F0F0F0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+input,select,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #3A3A50;background:#2A2A3E;color:#F0F0F0;font-size:14px;outline:none;box-sizing:border-box}
+textarea{resize:vertical;min-height:60px}
+label.lbl{font-size:12px;color:#AAA;margin-bottom:4px;display:block;font-weight:600}
+.container{max-width:700px;margin:0 auto;padding:0 16px 24px}
+.sticky-header{position:sticky;top:0;z-index:100;background:#13131F;padding:24px 0 12px;margin:0 -16px;padding-left:16px;padding-right:16px}
+h1{font-size:26px;font-weight:800;background:linear-gradient(135deg,#7C4DFF,#00BCD4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px}
+.stat-card{border-radius:12px;padding:12px 8px;text-align:center}
+.stat-val{font-size:22px;font-weight:800}
+.stat-lbl{font-size:11px;color:#888}
+.toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.search-input{flex:1;min-width:120px;padding:10px 14px;border-radius:12px;border:1px solid #2A2A3E;background:#1E1E2E;color:#F0F0F0;font-size:14px;outline:none}
+.btn{padding:10px 14px;border-radius:12px;border:1px solid #2A2A3E;background:#1E1E2E;color:#AAA;cursor:pointer;font-size:13px;font-weight:600;position:relative}
+.btn-primary{padding:10px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,#7C4DFF,#536DFE);color:#fff;font-weight:700;cursor:pointer;font-size:14px}
+.btn-save{padding:12px 0;border-radius:12px;border:none;background:linear-gradient(135deg,#7C4DFF,#536DFE);color:#fff;font-weight:700;cursor:pointer;font-size:15px;width:100%}
+.btn-delete{padding:12px 18px;border-radius:12px;border:1px solid #F44336;background:transparent;color:#F44336;font-weight:700;cursor:pointer;font-size:14px}
+.view-toggle{display:flex;gap:4px;background:#1A1A2E;border-radius:10px;padding:3px}
+.view-btn{padding:7px 10px;border-radius:8px;border:none;cursor:pointer;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center}
+.badge{position:absolute;top:-6px;right:-6px;background:#7C4DFF;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:800}
+.spool-list{display:flex;flex-direction:column;gap:10px}
+.spool-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px}
+.card-list{display:flex;gap:14px;background:#1A1A2E;border-radius:16px;padding:14px;transition:transform 0.15s;border:1px solid #2A2A3E;align-items:flex-start;position:relative}
+.card-list:hover{border-color:#3A3A50}
+.card-list.selected{border-color:#7C4DFF;background:#7C4DFF11}
+.card-grid{background:#1A1A2E;border-radius:16px;padding:14px;transition:transform 0.15s;border:1px solid #2A2A3E;text-align:center;position:relative}
+.card-grid:hover{border-color:#3A3A50}
+.card-grid.selected{border-color:#7C4DFF;background:#7C4DFF11}
+.spool-icon{width:72px;height:72px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.spool-icon-grid{width:72px;height:72px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 8px}
+.spool-img{width:72px;height:72px;border-radius:12px;object-fit:cover}
+.spool-img-grid{width:72px;height:72px;border-radius:14px;object-fit:cover}
+.color-name{font-weight:700;font-size:15px;color:#F0F0F0}
+.brand-type{font-size:12px;color:#999;margin-top:2px}
+.status-badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;display:inline-block;cursor:pointer;transition:all 0.15s;user-select:none}
+.status-badge:hover{filter:brightness(1.2);transform:scale(1.05)}
+.specs{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:11px;color:#AAA}
+.specs-grid{font-size:10px;color:#AAA;margin-top:6px}
+.progress-bar{width:100%;height:6px;background:#2A2A3E;border-radius:3px;margin-top:8px;overflow:hidden}
+.progress-fill{height:100%;border-radius:3px;transition:width 0.3s}
+.progress-text{font-size:10px;color:#777;margin-top:4px}
+.notes-line{font-size:11px;color:#888;margin-top:4px;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px}
+.modal-content{background:#1E1E2E;border-radius:20px;padding:24px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;position:relative}
+.modal-close{position:absolute;top:12px;right:16px;background:none;border:none;color:#888;font-size:22px;cursor:pointer}
+.filter-panel{background:#1A1A2E;border-radius:16px;padding:16px;margin-bottom:16px;border:1px solid #2A2A3E}
+.filter-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.chip{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all 0.15s;white-space:nowrap}
+.chip-wrap{display:flex;flex-wrap:wrap;gap:6px}
+.sec-title{font-size:13px;font-weight:700;color:#CCC;margin-bottom:8px;margin-top:16px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-group{margin-bottom:12px}
+.img-upload{width:80px;height:80px;border-radius:12px;border:2px dashed #555;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;flex-shrink:0;background:#2A2A3E}
+.img-upload img{width:100%;height:100%;object-fit:cover}
+.img-placeholder{text-align:center;color:#888;font-size:10px;line-height:1.4}
+.range-labels{display:flex;justify-content:space-between;font-size:10px;color:#777}
+.range-track{height:4px;background:#2A2A3E;border-radius:2px;position:relative;margin-top:12px}
+.range-fill{position:absolute;height:100%;background:#7C4DFF;border-radius:2px}
+.hidden-range{position:absolute;width:100%;height:30px;opacity:0;cursor:pointer}
+.saved-toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#2E7D32;color:#fff;padding:8px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:2000;box-shadow:0 4px 15px rgba(0,0,0,0.4);animation:fadeIn 0.2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateX(-50%) translateY(-10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+.brand-dropdown{position:relative}
+.brand-list{position:absolute;top:100%;left:0;right:0;max-height:180px;overflow-y:auto;background:#2A2A3E;border:1px solid #3A3A50;border-radius:10px;z-index:10;margin-top:4px}
+.brand-item{padding:8px 12px;cursor:pointer;font-size:13px;color:#DDD;border-bottom:1px solid #333}
+.brand-item:hover{background:#3A3A50}
+.color-row{display:flex;gap:8px;align-items:flex-end}
+.hex-picker{width:44px;height:42px;border:none;border-radius:8px;cursor:pointer;background:none;padding:0}
+.pastille{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;border:2px solid #1A1A2E;z-index:5}
+.select-checkbox{position:absolute;top:8px;left:8px;width:22px;height:22px;border-radius:6px;border:2px solid #555;background:#2A2A3E;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:5;font-size:13px;transition:all 0.15s}
+.select-checkbox.checked{background:#7C4DFF;border-color:#7C4DFF;color:#fff}
+.select-bar{display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,#7C4DFF22,#536DFE22);border:1px solid #7C4DFF44;border-radius:14px;padding:10px 16px;margin-bottom:12px;flex-wrap:wrap}
+.select-bar-btn{padding:8px 14px;border-radius:10px;border:none;font-weight:700;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px}
+.import-zone{border:2px dashed #7C4DFF55;border-radius:14px;padding:30px;text-align:center;cursor:pointer;transition:all 0.2s;background:#7C4DFF08}
+.import-zone:hover{border-color:#7C4DFF;background:#7C4DFF15}
+.import-zone.dragover{border-color:#7C4DFF;background:#7C4DFF22}
+.import-preview{max-height:300px;overflow-y:auto;margin-top:16px}
+.import-item{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#2A2A3E;border-radius:10px;margin-bottom:6px;cursor:pointer}
+.import-item .color-dot{width:24px;height:24px;border-radius:6px;flex-shrink:0}
+.edit-btn{background:none;border:none;cursor:pointer;padding:4px;border-radius:6px;transition:all 0.15s;color:#777;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.edit-btn:hover{background:#7C4DFF22;color:#B39DDB}
+.popup-menu{position:absolute;z-index:20;background:#2A2A3E;border:1px solid #3A3A50;border-radius:12px;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,0.5);display:flex;flex-direction:column;gap:4px;min-width:120px}
+.popup-item{padding:8px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background 0.1s}
+.popup-item:hover{filter:brightness(1.1)}
+.popup-item .dot{width:8px;height:8px;border-radius:50%}
+.dup-btn-on{flex:1;padding:12px 0;border-radius:12px;border:none;font-weight:700;font-size:14px;background:linear-gradient(135deg,#00897B,#26A69A);color:#fff;cursor:pointer}
+.dup-btn-off{flex:1;padding:12px 0;border-radius:12px;border:none;font-weight:700;font-size:14px;background:#333;color:#666;cursor:default;opacity:0.4}
+.dup-warning{background:#FF980022;border:1px solid #FF980066;border-radius:10px;padding:10px 14px;margin-top:12px;font-size:12px;color:#FFB74D;display:flex;align-items:center;gap:8px}
+.qty-ctrl{display:flex;align-items:center;gap:0;background:#2A2A3E;border-radius:8px;border:1px solid #3A3A50;overflow:hidden;flex-shrink:0}
+.qty-btn{width:26px;height:26px;border:none;background:transparent;color:#AAA;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.1s}
+.qty-btn:hover{background:#7C4DFF33;color:#fff}
+.qty-val{min-width:22px;text-align:center;font-size:12px;font-weight:700;color:#F0F0F0;padding:0 2px}
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1100;padding:16px}
+.confirm-box{background:#1E1E2E;border-radius:20px;padding:28px;width:100%;max-width:360px;text-align:center}
+.confirm-title{font-size:18px;font-weight:700;margin-bottom:8px}
+.confirm-msg{font-size:13px;color:#AAA;margin-bottom:20px}
+.confirm-actions{display:flex;gap:10px}
+.confirm-cancel{flex:1;padding:12px;border-radius:12px;border:1px solid #3A3A50;background:#2A2A3E;color:#AAA;font-weight:700;cursor:pointer;font-size:14px}
+.confirm-delete{flex:1;padding:12px;border-radius:12px;border:none;background:#F44336;color:#fff;font-weight:700;cursor:pointer;font-size:14px}
+.install-banner{position:fixed;bottom:0;left:0;right:0;background:#1E1E2E;border-top:1px solid #3A3A50;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;z-index:900;gap:12px}
+.install-banner-text{font-size:13px;color:#CCC;font-weight:600}
+.install-banner-btn{padding:10px 20px;border-radius:12px;border:none;background:linear-gradient(135deg,#7C4DFF,#536DFE);color:#fff;font-weight:700;cursor:pointer;font-size:13px;white-space:nowrap}
+.install-banner-close{background:none;border:none;color:#777;font-size:20px;cursor:pointer;padding:4px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+<div id="install-banner-root"></div>
+
+<script>
+// ── PWA: Manifest injection ──
+var manifest={
+  name:"Filament Tracker",
+  short_name:"Filaments",
+  description:"Gestion d'inventaire de filaments 3D",
+  start_url:"./index.html",
+  display:"standalone",
+  background_color:"#13131F",
+  theme_color:"#13131F",
+  orientation:"portrait",
+  icons:[
+    {src:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2313131F'/><text x='50' y='62' text-anchor='middle' font-size='50'>🧵</text></svg>",sizes:"any",type:"image/svg+xml"},
+    {src:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%2313131F'/><text x='256' y='320' text-anchor='middle' font-size='260'>🧵</text></svg>",sizes:"512x512",type:"image/svg+xml"}
+  ]
+};
+var manifestBlob=new Blob([JSON.stringify(manifest)],{type:'application/json'});
+var manifestURL=URL.createObjectURL(manifestBlob);
+document.querySelector('link[rel="manifest"]').href=manifestURL;
+
+// ── PWA: Service Worker ──
+if('serviceWorker' in navigator){
+  var swCode='var CACHE="filament-v1";self.addEventListener("install",function(e){e.waitUntil(caches.open(CACHE).then(function(c){return c.addAll(["./"])}));self.skipWaiting()});self.addEventListener("activate",function(e){e.waitUntil(caches.keys().then(function(ks){return Promise.all(ks.filter(function(k){return k!==CACHE}).map(function(k){return caches.delete(k)}))}));self.clients.claim()});self.addEventListener("fetch",function(e){e.respondWith(caches.match(e.request).then(function(r){return r||fetch(e.request).then(function(res){return caches.open(CACHE).then(function(c){c.put(e.request,res.clone());return res})})}))})';
+  var swBlob=new Blob([swCode],{type:'application/javascript'});
+  var swURL=URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swURL).catch(function(){});
+}
+
+// ── PWA: Install prompt ──
+var deferredPrompt=null;
+var installDismissed=false;
+window.addEventListener('beforeinstallprompt',function(e){
+  e.preventDefault();deferredPrompt=e;showInstallBanner();
+});
+function showInstallBanner(){
+  if(installDismissed||!deferredPrompt)return;
+  document.getElementById('install-banner-root').innerHTML=
+    '<div class="install-banner"><span class="install-banner-text">📲 Installer Filament Tracker</span><div style="display:flex;gap:8px"><button class="install-banner-btn" onclick="doInstall()">Installer</button><button class="install-banner-close" onclick="dismissInstall()">✕</button></div></div>';
+}
+function doInstall(){
+  if(!deferredPrompt)return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(function(){deferredPrompt=null;document.getElementById('install-banner-root').innerHTML=""});
+}
+function dismissInstall(){installDismissed=true;document.getElementById('install-banner-root').innerHTML=""}
+window.addEventListener('appinstalled',function(){document.getElementById('install-banner-root').innerHTML=""});
+
+// ── Data ──
+var BRANDS=["3DXTech","add:north","Amazon Basics","Anycubic","Autre","Bambu Lab","ColorFabb","Creality","Das Filament","Duramic","Elegoo","Eryone","eSUN","Extrudr","Fiberlogy","Fillamentum","Flashforge","FormFutura","Geeetech","GST3D","Hatchbox","Inland","iSANMATE","Jayo","Kexcelled","Kingroon","MatterHackers","Mingda","NinjaTek","Numakers","Overture","Polymaker","Proto-Pasta","Prusament","Snapmaker","Sovol","Spectrum","Sunlu","Tinmorry","TTYT3D","Voxelab","YOUSU","ZIRO"];
+var TYPES=["PLA Basic","PLA Matte","PLA Silk+","PLA Silk","PLA+","PLA","PETG","PETG Translucent","ABS","ASA","TPU","PC","Nylon","PVA","HIPS","Wood PLA","Carbon Fiber","Marble PLA","Glow PLA","Autre"];
+var TYPE_DEFAULTS={"PLA Basic":{tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H"},"PLA Matte":{tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H"},"PLA Silk+":{tempPrint:"190–240°C",bedTemp:"35–45°C",drying:"55°C, 8H"},"PLA Silk":{tempPrint:"190–240°C",bedTemp:"35–45°C",drying:"55°C, 8H"},"PLA+":{tempPrint:"200–230°C",bedTemp:"45–60°C",drying:"55°C, 8H"},"PLA":{tempPrint:"190–230°C",bedTemp:"35–60°C",drying:"55°C, 8H"},"PETG":{tempPrint:"230–260°C",bedTemp:"60–80°C",drying:"65°C, 8H"},"PETG Translucent":{tempPrint:"230–260°C",bedTemp:"65–75°C",drying:"65°C, 8H"},"ABS":{tempPrint:"240–270°C",bedTemp:"90–110°C",drying:"80°C, 8H"},"ASA":{tempPrint:"240–270°C",bedTemp:"90–110°C",drying:"80°C, 8H"},"TPU":{tempPrint:"200–230°C",bedTemp:"25–60°C",drying:"55°C, 4H"},"PC":{tempPrint:"260–300°C",bedTemp:"100–120°C",drying:"80°C, 8H"},"Nylon":{tempPrint:"240–270°C",bedTemp:"70–90°C",drying:"70°C, 12H"},"PVA":{tempPrint:"190–210°C",bedTemp:"45–60°C",drying:"55°C, 8H"},"HIPS":{tempPrint:"230–250°C",bedTemp:"90–110°C",drying:"70°C, 8H"},"Wood PLA":{tempPrint:"190–220°C",bedTemp:"45–60°C",drying:"55°C, 8H"},"Carbon Fiber":{tempPrint:"230–260°C",bedTemp:"60–80°C",drying:"70°C, 8H"},"Marble PLA":{tempPrint:"190–230°C",bedTemp:"35–60°C",drying:"55°C, 8H"},"Glow PLA":{tempPrint:"190–230°C",bedTemp:"35–60°C",drying:"55°C, 8H"},"Autre":{tempPrint:"",bedTemp:"",drying:""}};
+var DEFAULT_SPOOLS=[
+{id:1,brand:"Bambu Lab",type:"PLA Matte",color:"Lilac Purple",code:"11700",hex:"#B39DDB",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",status:"new",pct:100,img:null,notes:"",rating:"none"},
+{id:2,brand:"Bambu Lab",type:"PLA Matte",color:"Ivory White",code:"11100",hex:"#F5F5F0",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",status:"new",pct:100,img:null,notes:"",rating:"none"},
+{id:3,brand:"Bambu Lab",type:"PLA Matte",color:"Latte Brown",code:"11800",hex:"#D4A88C",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",status:"new",pct:100,img:null,notes:"",rating:"none"},
+{id:4,brand:"Bambu Lab",type:"PLA Matte",color:"Dark Green",code:"11501",hex:"#2E5A2E",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",status:"new",pct:100,img:null,notes:"",rating:"none"},
+{id:5,brand:"Bambu Lab",type:"PLA Matte",color:"Desert Tan",code:"11401",hex:"#E8D5A3",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",status:"new",pct:100,img:null,notes:"",rating:"none"},
+{id:6,brand:"Bambu Lab",type:"PLA Matte",color:"Charcoal",code:"11101",hex:"#3A3A3A",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",status:"new",pct:100,img:null,notes:"",rating:"none"},
+{id:7,brand:"Bambu Lab",type:"PLA Matte",color:"Dark Blue",code:"11602",hex:"#1A3A5C",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",status:"new",pct:100,img:null,notes:"",rating:"none"},
+{id:8,brand:"Bambu Lab",type:"PLA Matte",color:"Grass Green",code:"11500",hex:"#7BC8A4",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",status:"new",pct:100,img:null,notes:"",rating:"none"},
+{id:9,brand:"Bambu Lab",type:"PLA Basic",color:"Red",code:"10200",hex:"#E53935",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",status:"new",pct:100,img:null,notes:"",rating:"none"},
+{id:10,brand:"Bambu Lab",type:"PLA Basic",color:"Pumpkin Orange",code:"10301",hex:"#F57C00",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",status:"new",pct:100,img:null,notes:"",rating:"none"},
+{id:11,brand:"Bambu Lab",type:"PLA Silk+",color:"Candy Green",code:"13506",hex:"#2E7D32",tempPrint:"190–240°C",bedTemp:"35–45°C",drying:"55°C, 8H",status:"new",pct:100,img:null,notes:"",rating:"none"},
+{id:12,brand:"Bambu Lab",type:"PLA Silk+",color:"Champagne",code:"13404",hex:"#F0D9A0",tempPrint:"190–240°C",bedTemp:"35–45°C",drying:"55°C, 8H",status:"new",pct:100,img:null,notes:"",rating:"none"},
+{id:13,brand:"Bambu Lab",type:"PLA Silk+",color:"Blue",code:"13604",hex:"#1565C0",tempPrint:"190–240°C",bedTemp:"35–45°C",drying:"55°C, 8H",status:"new",pct:100,img:null,notes:"",rating:"none"},
+{id:14,brand:"Bambu Lab",type:"PLA Silk+",color:"Purple",code:"13702",hex:"#5C35A9",tempPrint:"190–240°C",bedTemp:"35–45°C",drying:"55°C, 8H",status:"new",pct:100,img:null,notes:"",rating:"none"},
+{id:15,brand:"Bambu Lab",type:"PETG Translucent",color:"Translucent Pink",code:"32200",hex:"#F8BBD0",tempPrint:"230–260°C",bedTemp:"65–75°C",drying:"65°C, 8H",status:"new",pct:100,img:null,notes:"",rating:"none"},
+{id:16,brand:"Bambu Lab",type:"PETG Translucent",color:"Translucent Olive",code:"32500",hex:"#8B9A5B",tempPrint:"230–260°C",bedTemp:"65–75°C",drying:"65°C, 8H",status:"new",pct:100,img:null,notes:"",rating:"none"},
+];
+var STATUS_CFG={new:{label:"Neuf",bg:"#E8F5E9",border:"#4CAF50",text:"#2E7D32"},inuse:{label:"En cours",bg:"#FFF3E0",border:"#FF9800",text:"#E65100"},empty:{label:"Terminé",bg:"#FFEBEE",border:"#F44336",text:"#C62828"}};
+var STATUS_ORDER=["new","inuse","empty"];
+var RATING_CFG={none:{label:"—",color:"#555",bg:"#2A2A3E",name:"Aucun"},bad:{label:"👎",color:"#F44336",bg:"#F4433622",name:"Mauvais"},good:{label:"👍",color:"#4CAF50",bg:"#4CAF5022",name:"Bon"},fav:{label:"⭐",color:"#FFD600",bg:"#FFD60022",name:"Favoris"}};
+var RATING_ORDER=["none","bad","good","fav"];
+var SORT_OPTIONS=[
+{v:"hue",l:"Teinte",fn:function(a,b){var ah=hexToHSL(a.hex),bh=hexToHSL(b.hex);if(ah.s<10&&bh.s<10)return ah.l-bh.l;if(ah.s<10)return 1;if(bh.s<10)return-1;return ah.h-bh.h||bh.s-ah.s||ah.l-bh.l}},
+{v:"color-asc",l:"Couleur A→Z",fn:function(a,b){return a.color.localeCompare(b.color)}},
+{v:"color-desc",l:"Couleur Z→A",fn:function(a,b){return b.color.localeCompare(a.color)}},
+{v:"brand-asc",l:"Marque A→Z",fn:function(a,b){return a.brand.localeCompare(b.brand)||a.color.localeCompare(b.color)}},
+{v:"type-asc",l:"Type A→Z",fn:function(a,b){return a.type.localeCompare(b.type)||a.color.localeCompare(b.color)}},
+{v:"pct-asc",l:"% Restant ↑",fn:function(a,b){return a.pct-b.pct}},
+{v:"pct-desc",l:"% Restant ↓",fn:function(a,b){return b.pct-a.pct}},
+{v:"status",l:"Statut",fn:function(a,b){var o={inuse:0,new:1,empty:2};return o[a.status]-o[b.status]}},
+{v:"rating",l:"Avis",fn:function(a,b){var o={fav:0,good:1,none:2,bad:3};return(o[a.rating||"none"])-(o[b.rating||"none"])}},
+];
+var STORAGE_KEY="filament-tracker-data";
+var BRANDS_STORAGE_KEY="filament-tracker-brands";
+
+function hexToHSL(hex){
+  var r=parseInt(hex.slice(1,3),16)/255,g=parseInt(hex.slice(3,5),16)/255,b=parseInt(hex.slice(5,7),16)/255;
+  var max=Math.max(r,g,b),min=Math.min(r,g,b),l=(max+min)/2;
+  var h=0,s=0;
+  if(max!==min){var d=max-min;s=l>0.5?d/(2-max-min):d/(max+min);
+    switch(max){case r:h=((g-b)/d+(g<b?6:0))*60;break;case g:h=((b-r)/d+2)*60;break;case b:h=((r-g)/d+4)*60;break}}
+  return{h:Math.round(h),s:Math.round(s*100),l:Math.round(l*100)};
+}
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+// ── State ──
+var spools=[].concat(DEFAULT_SPOOLS);
+var search="",fB="all",fT="all",fS="all",pMin=0,pMax=100,sortVal="";
+var showFilter=false,viewMode="list";
+var editModal=null,addModal=false,importModal=false;
+var newSpool=freshSpool();
+var selectMode=false,selected=new Set();
+var importData=[],importSelected=new Set(),importError="";
+var brandDropdownOpen=null;
+var statusPopupId=null;
+var ratingPopupId=null;
+var lastAddedSpool=null;
+var dupWarning="";
+var showImages=true;
+var confirmAction=null;
+
+function showConfirm(title,msg,onConfirm){
+  confirmAction={title:title,msg:msg,fn:onConfirm};renderConfirm();
+}
+function closeConfirm(){confirmAction=null;renderConfirm()}
+function execConfirm(){if(confirmAction&&confirmAction.fn)confirmAction.fn();confirmAction=null;renderConfirm()}
+function renderConfirm(){
+  var el=document.getElementById('confirm-root');
+  if(!el){el=document.createElement('div');el.id='confirm-root';document.body.appendChild(el)}
+  if(!confirmAction){el.innerHTML="";return}
+  el.innerHTML='<div class="confirm-overlay" onclick="closeConfirm()"><div class="confirm-box" onclick="event.stopPropagation()"><div class="confirm-title">'+confirmAction.title+'</div><div class="confirm-msg">'+confirmAction.msg+'</div><div class="confirm-actions"><button class="confirm-cancel" onclick="closeConfirm()">Annuler</button><button class="confirm-delete" onclick="execConfirm()">Supprimer</button></div></div></div>';
+}
+
+function freshSpool(){return{brand:"",type:"PLA Basic",color:"",hex:"#888888",code:"",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",speed:"",qty:1,status:"new",pct:100,img:null,notes:"",rating:"none"}}
+function canSubmitNew(){return !!(newSpool.color && newSpool.brand)}
+
+// ── Duplicate check ──
+function checkDuplicate(spool,excludeId){
+  if(!spool.color||!spool.brand||!spool.type)return null;
+  var c=spool.color.trim().toLowerCase(),b=spool.brand.trim().toLowerCase(),t=spool.type.trim().toLowerCase();
+  return spools.find(function(s){
+    if(excludeId&&s.id===excludeId)return false;
+    return s.color.trim().toLowerCase()===c&&s.brand.trim().toLowerCase()===b&&s.type.trim().toLowerCase()===t;
+  })||null;
+}
+
+// ── Auto-add brand ──
+function ensureBrandExists(brand){
+  if(!brand)return;var b=brand.trim();if(!b)return;
+  var exists=BRANDS.some(function(x){return x.toLowerCase()===b.toLowerCase()});
+  if(!exists){BRANDS.push(b);BRANDS.sort(function(a,b){return a.toLowerCase().localeCompare(b.toLowerCase())});saveCustomBrands()}
+}
+function saveCustomBrands(){try{localStorage.setItem(BRANDS_STORAGE_KEY,JSON.stringify(BRANDS))}catch(e){}}
+function loadCustomBrands(){try{var stored=localStorage.getItem(BRANDS_STORAGE_KEY);if(stored){BRANDS=JSON.parse(stored)}}catch(e){}}
+
+// ── Persistence ──
+function loadData(){
+  loadCustomBrands();
+  try{var stored=localStorage.getItem(STORAGE_KEY);if(stored){spools=JSON.parse(stored).map(function(s){return Object.assign({bedTemp:"",img:null,notes:"",rating:"none",speed:"",qty:1},s)})}}catch(e){}
+  renderMain();
+}
+function saveData(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(spools))}catch(e){}showSaved()}
+function showSaved(){
+  document.getElementById('toast-root').innerHTML='<div class="saved-toast">✅ Sauvegardé</div>';
+  setTimeout(function(){document.getElementById('toast-root').innerHTML=""},2000);
+}
+
+// ── Filtering ──
+function getFiltered(){
+  var r=spools.filter(function(s){
+    if(fB!=="all"&&s.brand!==fB)return false;
+    if(fT!=="all"&&s.type!==fT)return false;
+    if(fS!=="all"&&s.status!==fS)return false;
+    if(s.pct<pMin||s.pct>pMax)return false;
+    if(search&&(s.color+" "+s.brand+" "+s.type+" "+s.code).toLowerCase().indexOf(search.toLowerCase())===-1)return false;
+    return true;
+  });
+  if(sortVal){var so=SORT_OPTIONS.find(function(o){return o.v===sortVal});if(so)r=r.slice().sort(so.fn)}
+  return r;
+}
+function getAFC(){return[fB!=="all",fT!=="all",fS!=="all",pMin>0,pMax<100,sortVal!==""].filter(Boolean).length}
+function getAllBrands(){return Array.from(new Set(spools.map(function(s){return s.brand}))).sort()}
+function getAllTypes(){return Array.from(new Set(spools.map(function(s){return s.type}))).sort()}
+function getStats(){return{total:spools.length,new_:spools.filter(function(s){return s.status==="new"}).length,inuse:spools.filter(function(s){return s.status==="inuse"}).length,empty:spools.filter(function(s){return s.status==="empty"}).length}}
+
+// ── Actions ──
+function resetFilters(){fB="all";fT="all";fS="all";pMin=0;pMax=100;sortVal="";renderMain()}
+function resetData(){showConfirm("🔄 Réinitialiser","Réinitialiser tout l'inventaire ? Cette action est irréversible.",function(){spools=[].concat(DEFAULT_SPOOLS);saveData();renderMain()})}
+function deleteSpool(id){
+  var s=spools.find(function(x){return x.id===id});
+  showConfirm("🗑️ Supprimer","Supprimer <strong>"+esc(s?s.color:"")+"</strong> ("+esc(s?s.brand:"")+") de l'inventaire ?",function(){spools=spools.filter(function(x){return x.id!==id});editModal=null;saveData();renderMain();renderModals()});
+}
+
+function addSpoolAction(){
+  if(!canSubmitNew())return;
+  var dup=checkDuplicate(newSpool);
+  if(dup){dupWarning="⚠️ Un filament identique existe déjà : "+dup.color+" ("+dup.brand+" · "+dup.type+")";renderModals();return}
+  ensureBrandExists(newSpool.brand);
+  var id=Math.max.apply(null,[0].concat(spools.map(function(s){return s.id})))+1;
+  spools.push(Object.assign({},newSpool,{id:id}));
+  lastAddedSpool=Object.assign({},newSpool);
+  newSpool=freshSpool();addModal=false;dupWarning="";saveData();renderMain();renderModals();
+}
+function addAndDuplicate(){
+  if(!canSubmitNew())return;
+  var dup=checkDuplicate(newSpool);
+  if(dup){dupWarning="⚠️ Un filament identique existe déjà : "+dup.color+" ("+dup.brand+" · "+dup.type+")";renderModals();return}
+  ensureBrandExists(newSpool.brand);
+  var id=Math.max.apply(null,[0].concat(spools.map(function(s){return s.id})))+1;
+  spools.push(Object.assign({},newSpool,{id:id}));
+  lastAddedSpool=Object.assign({},newSpool);
+  newSpool=Object.assign({},lastAddedSpool,{color:lastAddedSpool.color+" - copy",img:null});
+  dupWarning="";saveData();renderMain();renderModals();
+}
+function saveEditAction(){
+  if(!editModal)return;
+  var dup=checkDuplicate(editModal,editModal.id);
+  if(dup){dupWarning="⚠️ Un filament identique existe déjà : "+dup.color+" ("+dup.brand+" · "+dup.type+")";renderModals();return}
+  ensureBrandExists(editModal.brand);
+  spools=spools.map(function(s){return s.id===editModal.id?Object.assign({},editModal):s});
+  editModal=null;dupWarning="";saveData();renderMain();renderModals();
+}
+function openEdit(id,e){e.stopPropagation();dupWarning="";editModal=Object.assign({},spools.find(function(x){return x.id===id}));renderModals()}
+function duplicateFromEdit(){
+  if(!editModal)return;
+  var copy=Object.assign({},editModal,{color:editModal.color+" - copy",img:null});
+  delete copy.id;newSpool=copy;editModal=null;addModal=true;dupWarning="";renderModals();
+}
+
+// ── Status popup ──
+function cycleStatus(id,e){e.stopPropagation();ratingPopupId=null;statusPopupId=statusPopupId===id?null:id;renderMain()}
+function setStatus(id,st,e){e.stopPropagation();spools=spools.map(function(s){return s.id===id?Object.assign({},s,{status:st}):s});statusPopupId=null;saveData();renderMain()}
+
+// ── Rating popup ──
+function toggleRatingPopup(id,e){e.stopPropagation();statusPopupId=null;ratingPopupId=ratingPopupId===id?null:id;renderMain()}
+function setRating(id,r,e){e.stopPropagation();spools=spools.map(function(s){return s.id===id?Object.assign({},s,{rating:r}):s});ratingPopupId=null;saveData();renderMain()}
+
+document.addEventListener('click',function(){if(statusPopupId!==null||ratingPopupId!==null){statusPopupId=null;ratingPopupId=null;renderMain()}});
+
+// ── Qty inline ──
+function changeQty(id,delta,e){e.stopPropagation();spools=spools.map(function(s){if(s.id===id){var q=Math.max(0,(s.qty||1)+delta);return Object.assign({},s,{qty:q})}return s});saveData();renderMain()}
+
+// ── Selection ──
+function toggleSelectMode(){selectMode=!selectMode;selected.clear();renderMain()}
+function toggleSelect(id,e){e.stopPropagation();if(selected.has(id))selected.delete(id);else selected.add(id);renderMain()}
+function selectAll(){var f=getFiltered();if(selected.size===f.length)selected.clear();else f.forEach(function(s){selected.add(s.id)});renderMain()}
+function deleteSelected(){
+  if(!selected.size)return;
+  showConfirm("🗑️ Supprimer","Supprimer <strong>"+selected.size+" filament"+(selected.size>1?"s":"")+"</strong> de l'inventaire ?",function(){spools=spools.filter(function(s){return!selected.has(s.id)});selected.clear();selectMode=false;saveData();renderMain()});
+}
+function exportSelectedJSON(){
+  var exp=spools.filter(function(s){return selected.has(s.id)}).map(function(s){var c=Object.assign({},s);delete c.id;return c});
+  var blob=new Blob([JSON.stringify(exp,null,2)],{type:"application/json"});
+  var url=URL.createObjectURL(blob);var a=document.createElement("a");
+  a.href=url;a.download="filaments_export_"+exp.length+"_"+new Date().toISOString().slice(0,10)+".json";a.click();URL.revokeObjectURL(url);
+  selectMode=false;selected.clear();showSaved();renderMain();
+}
+function exportCSV(){
+  var src=selectMode&&selected.size?spools.filter(function(s){return selected.has(s.id)}):spools;
+  var h="Marque,Type,Couleur,Code,Hex,Temp Buse,Temp Lit,Séchage,Statut,Avis,% Restant,Poids Estimé (g),Notes\n";
+  var r=src.map(function(s){return'"'+s.brand+'","'+s.type+'","'+s.color+'","'+s.code+'","'+s.hex+'","'+s.tempPrint+'","'+(s.bedTemp||"")+'","'+s.drying+'","'+STATUS_CFG[s.status].label+'","'+RATING_CFG[s.rating||"none"].name+'",'+s.pct+','+Math.round(s.pct*10)+',"'+(s.notes||"").replace(/"/g,'""')+'"'}).join("\n");
+  var blob=new Blob(["\uFEFF"+h+r],{type:"text/csv;charset=utf-8;"});
+  var url=URL.createObjectURL(blob);var a=document.createElement("a");a.download="filament_inventory_"+new Date().toISOString().slice(0,10)+".csv";a.href=url;a.click();URL.revokeObjectURL(url);
+  if(selectMode){selectMode=false;selected.clear()}renderMain();
+}
+
+// ── Import ──
+function openImportModal(){importModal=true;importData=[];importSelected=new Set();importError="";renderModals()}
+function closeImportModal(){importModal=false;importData=[];importSelected=new Set();importError="";renderModals()}
+function handleImportFile(e){
+  var f;if(e.target&&e.target.files)f=e.target.files[0];else if(e.dataTransfer)f=e.dataTransfer.files[0];if(!f)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      var text=ev.target.result;var data;
+      if(f.name.endsWith('.json')){
+        data=JSON.parse(text);if(!Array.isArray(data))throw new Error("Le JSON doit contenir un tableau");
+        data=data.map(function(s){return{brand:s.brand||"",type:s.type||"PLA Basic",color:s.color||"Sans nom",code:s.code||"",hex:s.hex||"#888888",tempPrint:s.tempPrint||"",bedTemp:s.bedTemp||"",drying:s.drying||"",status:s.status||"new",pct:s.pct!=null?s.pct:100,img:s.img||null,notes:s.notes||"",rating:s.rating||"none"}});
+      }else if(f.name.endsWith('.csv')){data=parseCSVImport(text)}
+      else throw new Error("Format non supporté (.json ou .csv)");
+      importData=data;importSelected=new Set(data.map(function(_,i){return i}));importError="";
+    }catch(err){importError="❌ "+err.message;importData=[]}
+    renderModals();
+  };reader.readAsText(f);
+}
+function parseCSVImport(text){
+  var lines=text.split('\n').map(function(l){return l.trim()}).filter(function(l){return l});if(lines.length<2)throw new Error("CSV vide");
+  var headers=lines[0].split(',').map(function(h){return h.replace(/"/g,'').trim().toLowerCase()});
+  var results=[];
+  for(var i=1;i<lines.length;i++){
+    var vals=[],cur="",inQ=false;
+    for(var ci=0;ci<lines[i].length;ci++){var ch=lines[i][ci];if(ch==='"')inQ=!inQ;else if(ch===','&&!inQ){vals.push(cur.trim());cur=""}else cur+=ch}
+    vals.push(cur.trim());
+    var row={};headers.forEach(function(h,j){row[h]=vals[j]?vals[j].replace(/^"|"$/g,''):""});
+    var sm={"neuf":"new","en cours":"inuse","terminé":"empty","new":"new","inuse":"inuse","empty":"empty"};
+    results.push({brand:row.marque||row.brand||"",type:row.type||"PLA Basic",color:row.couleur||row.color||"Sans nom",code:row.code||"",hex:row.hex||"#888888",tempPrint:row["temp buse"]||row.tempprint||"",bedTemp:row["temp lit"]||row.bedtemp||"",drying:row["séchage"]||row.sechage||row.drying||"",status:sm[(row.statut||row.status||"new").toLowerCase()]||"new",pct:parseInt(row["% restant"]||row.pct||"100")||100,img:null,notes:row.notes||"",rating:row.avis||row.rating||"none"});
+  }return results;
+}
+function toggleImportItem(idx){if(importSelected.has(idx))importSelected.delete(idx);else importSelected.add(idx);renderModals()}
+function toggleImportAll(){if(importSelected.size===importData.length)importSelected.clear();else importSelected=new Set(importData.map(function(_,i){return i}));renderModals()}
+function confirmImport(){
+  var toAdd=importData.filter(function(_,i){return importSelected.has(i)});if(!toAdd.length)return;
+  var maxId=Math.max.apply(null,[0].concat(spools.map(function(s){return s.id})));
+  toAdd.forEach(function(s){maxId++;ensureBrandExists(s.brand);spools.push(Object.assign({},s,{id:maxId}))});
+  closeImportModal();saveData();renderMain();
+}
+
+// ── Render helpers ──
+function progressColor(pct){return pct>50?"#4CAF50":pct>20?"#FF9800":"#F44336"}
+function renderCheckbox(id,checked){
+  if(!selectMode)return"";
+  return'<div class="select-checkbox '+(checked?'checked':'')+'" onclick="toggleSelect('+id+',event)">'+(checked?'✓':'')+'</div>';
+}
+function renderSpoolIcon(s,cls){
+  if(showImages&&s.img)return'<div style="position:relative;flex-shrink:0"><img src="'+s.img+'" class="'+cls+'" onclick="openEdit('+s.id+',event)" style="cursor:pointer"/><div class="pastille" style="background:'+s.hex+'"></div></div>';
+  return'<div class="'+cls+'" style="background:'+s.hex+';cursor:pointer" onclick="openEdit('+s.id+',event)"></div>';
+}
+function renderStatusBadge(s,pos){
+  var st=STATUS_CFG[s.status];var popup="";
+  if(statusPopupId===s.id){popup='<div class="popup-menu" style="'+(pos||'top:100%;right:0;margin-top:4px')+'" onclick="event.stopPropagation()">';STATUS_ORDER.forEach(function(k){var c=STATUS_CFG[k];popup+='<div class="popup-item" style="background:'+(s.status===k?c.bg+'66':'transparent')+'" onclick="setStatus('+s.id+',\''+k+'\',event)"><div class="dot" style="background:'+c.border+'"></div><span style="color:'+c.text+'">'+c.label+'</span></div>'});popup+='</div>';}
+  return'<div style="position:relative;display:inline-block"><span class="status-badge" style="background:'+st.bg+';color:'+st.text+';border:1px solid '+st.border+'" onclick="cycleStatus('+s.id+',event)">'+st.label+' ▾</span>'+popup+'</div>';
+}
+function renderRatingBadge(s,pos){
+  var rt=RATING_CFG[s.rating||"none"];var popup="";
+  if(ratingPopupId===s.id){popup='<div class="popup-menu" style="'+(pos||'top:100%;right:0;margin-top:4px')+'" onclick="event.stopPropagation()">';RATING_ORDER.forEach(function(k){var c=RATING_CFG[k];popup+='<div class="popup-item" style="background:'+((s.rating||"none")===k?c.bg:'transparent')+'" onclick="setRating('+s.id+',\''+k+'\',event)"><span>'+c.label+'</span><span style="color:'+c.color+';font-size:11px">'+c.name+'</span></div>'});popup+='</div>';}
+  return'<div style="position:relative;display:inline-block"><span class="status-badge" style="background:'+rt.bg+';color:'+rt.color+';border:1px solid '+rt.color+'44;font-size:12px" onclick="toggleRatingPopup('+s.id+',event)">'+rt.label+' ▾</span>'+popup+'</div>';
+}
+
+function renderSpoolList(s){
+  var st=STATUS_CFG[s.status],sel=selected.has(s.id);
+  var click=selectMode?'onclick="toggleSelect('+s.id+',event)"':'';
+  return'<div class="card-list '+(sel?'selected':'')+'" '+click+'>'+renderCheckbox(s.id,sel)+
+    '<div style="display:flex;flex-direction:column;align-items:center;gap:6px;'+(selectMode?'margin-left:20px':'')+'">'+renderSpoolIcon(s,'spool-icon')+'<div class="qty-ctrl"><button class="qty-btn" onclick="changeQty('+s.id+',-1,event)">−</button><div class="qty-val">'+(s.qty||1)+'</div><button class="qty-btn" onclick="changeQty('+s.id+',1,event)">+</button></div><div style="width:6px;height:6px;border-radius:50%;background:'+st.border+'"></div></div>'+
+    '<div style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div class="color-name">'+esc(s.color)+'</div><div class="brand-type">'+esc(s.brand)+' · '+esc(s.type)+'</div></div>'+
+    '<div style="display:flex;align-items:center;gap:6px">'+renderRatingBadge(s)+renderStatusBadge(s)+'<button class="edit-btn" onclick="openEdit('+s.id+',event)" title="Modifier">✏️</button></div></div>'+
+    '<div class="specs"><span>🌡️ '+esc(s.tempPrint)+'</span><span>🛏️ '+esc(s.bedTemp||"N/A")+'</span><span>💨 '+esc(s.drying)+'</span>'+(s.speed?'<span>🚀 '+esc(s.speed)+'</span>':'')+(s.code?'<span>#'+esc(s.code)+'</span>':'')+'</div>'+
+    (s.notes?'<div class="notes-line">📝 '+esc(s.notes)+'</div>':'')+
+    '<div class="progress-bar"><div class="progress-fill" style="width:'+s.pct+'%;background:'+progressColor(s.pct)+'"></div></div>'+
+    '<div class="progress-text">'+s.pct+'% restant · ~'+Math.round(s.pct*10)+'g</div></div></div>';
+}
+function renderSpoolGrid(s){
+  var st=STATUS_CFG[s.status],sel=selected.has(s.id);
+  var click=selectMode?'onclick="toggleSelect('+s.id+',event)"':'';
+  return'<div class="card-grid '+(sel?'selected':'')+'" '+click+'>'+renderCheckbox(s.id,sel)+
+    '<button class="edit-btn" style="position:absolute;top:8px;right:8px" onclick="openEdit('+s.id+',event)" title="Modifier">✏️</button>'+
+    '<div style="position:relative;display:inline-block">'+renderSpoolIcon(s,'spool-icon-grid')+'<div style="position:absolute;top:4px;left:4px">'+renderStatusBadge(s,'top:100%;left:0;margin-top:4px')+'</div></div>'+
+    '<div class="color-name" style="font-size:13px;margin-top:4px">'+esc(s.color)+'</div><div class="brand-type">'+esc(s.brand)+' · '+esc(s.type)+'</div>'+
+    '<div style="display:flex;justify-content:center;margin-top:6px"><div class="qty-ctrl"><button class="qty-btn" onclick="changeQty('+s.id+',-1,event)">−</button><div class="qty-val">'+(s.qty||1)+'</div><button class="qty-btn" onclick="changeQty('+s.id+',1,event)">+</button></div></div>'+
+    '<div class="specs-grid">🌡️'+esc(s.tempPrint)+'</div><div class="specs-grid">🛏️'+esc(s.bedTemp||"N/A")+' 💨'+esc(s.drying)+'</div>'+
+    (s.notes?'<div class="notes-line" style="font-size:10px">📝 '+esc(s.notes)+'</div>':'')+
+    '<div class="progress-bar" style="height:4px;margin-top:8px"><div class="progress-fill" style="width:'+s.pct+'%;background:'+progressColor(s.pct)+';height:100%"></div></div>'+
+    '<div class="progress-text">'+s.pct+'%</div></div>';
+}
+
+// ── Brand dropdown ──
+function showBrandDropdown(prefix){brandDropdownOpen=prefix;renderBrandDD(prefix)}
+function hideBrandDropdown(){setTimeout(function(){brandDropdownOpen=null;var el=document.getElementById('brand-dd');if(el)el.innerHTML=""},200)}
+function pickBrand(prefix,b){
+  if(prefix==='add')newSpool.brand=b;else if(editModal)editModal.brand=b;
+  brandDropdownOpen=null;
+  var inp=document.getElementById(prefix+'-brand-input');if(inp)inp.value=b;
+  var dd=document.getElementById('brand-dd');if(dd)dd.innerHTML="";
+  if(prefix==='add')refreshAddFooter();
+  checkDupLive(prefix);
+}
+function renderBrandDD(prefix){
+  var val=prefix==='add'?newSpool.brand:(editModal?editModal.brand:"");
+  var filtered=BRANDS.filter(function(b){return b.toLowerCase().indexOf((val||"").toLowerCase())!==-1});
+  var dd=document.getElementById('brand-dd');
+  if(!dd||!filtered.length){if(dd)dd.innerHTML="";return}
+  dd.innerHTML='<div class="brand-list">'+filtered.map(function(b){return'<div class="brand-item" onmousedown="event.preventDefault();pickBrand(\''+prefix+'\',\''+esc(b)+'\')">'+esc(b)+'</div>'}).join("")+'</div>';
+}
+
+// ── Live duplicate check ──
+function checkDupLive(prefix){
+  var data=prefix==='add'?newSpool:editModal;if(!data)return;
+  var excludeId=prefix==='edit'?editModal.id:null;
+  var dup=checkDuplicate(data,excludeId);
+  var el=document.getElementById(prefix+'-dup-warning');
+  if(dup&&el){dupWarning="⚠️ Un filament identique existe déjà : "+dup.color+" ("+dup.brand+" · "+dup.type+")";el.innerHTML='<div class="dup-warning">'+dupWarning+'</div>'}
+  else if(el){dupWarning="";el.innerHTML=""}
+}
+
+// ── Form field update ──
+function updateFieldLive(prefix,field,value){
+  if(prefix==='add')newSpool[field]=value;
+  else if(prefix==='edit'&&editModal)editModal[field]=value;
+  if(field==='pct'){var lbl=document.getElementById(prefix+'-pct-label');if(lbl)lbl.textContent="Restant: "+value+"% (~"+Math.round(value*10)+"g)"}
+  if(field==='brand'&&brandDropdownOpen===prefix)renderBrandDD(prefix);
+  if(prefix==='add'&&(field==='color'||field==='brand'))refreshAddFooter();
+  if(field==='color'||field==='brand'||field==='type')checkDupLive(prefix);
+}
+function handleTypeChangeLive(prefix,newType){
+  updateFieldLive(prefix,'type',newType);
+  var d=TYPE_DEFAULTS[newType];
+  if(d){updateFieldLive(prefix,'tempPrint',d.tempPrint);updateFieldLive(prefix,'bedTemp',d.bedTemp);updateFieldLive(prefix,'drying',d.drying);
+    var tp=document.getElementById(prefix+'-tempPrint');if(tp)tp.value=d.tempPrint;
+    var bt=document.getElementById(prefix+'-bedTemp');if(bt)bt.value=d.bedTemp;
+    var dr=document.getElementById(prefix+'-drying');if(dr)dr.value=d.drying;}
+}
+function handleImageUploadModal(event,prefix){
+  var f=event.target.files?event.target.files[0]:null;if(!f)return;
+  var r=new FileReader();r.onload=function(ev){updateFieldLive(prefix,'img',ev.target.result);renderModals()};r.readAsDataURL(f);
+}
+
+// ── Footer refresh ──
+function refreshAddFooter(){
+  var el=document.getElementById('add-modal-footer');if(!el)return;
+  var ok=canSubmitNew();
+  el.innerHTML='<button class="btn-save" onclick="addSpoolAction()" style="flex:3;opacity:'+(ok?'1':'0.4')+'"'+(ok?'':' disabled')+'>Ajouter à l\'inventaire</button>'+
+    '<button class="'+(ok?'dup-btn-on':'dup-btn-off')+'" onclick="'+(ok?'addAndDuplicate()':'void(0)')+'" title="Ajouter et dupliquer"'+(ok?'':' disabled')+'>📋</button>';
+}
+
+function renderFormFields(data,prefix){
+  var statusOpts=Object.keys(STATUS_CFG).map(function(k){return'<option value="'+k+'" '+(data.status===k?'selected':'')+'>'+STATUS_CFG[k].label+'</option>'}).join("");
+  var typeOpts=TYPES.map(function(t){return'<option value="'+t+'" '+(data.type===t?'selected':'')+'>'+t+'</option>'}).join("");
+  var ratingOpts=RATING_ORDER.map(function(k){return'<option value="'+k+'" '+((data.rating||"none")===k?'selected':'')+'>'+RATING_CFG[k].label+' '+RATING_CFG[k].name+'</option>'}).join("");
+  return'<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:16px">'+
+    '<div class="img-upload" onclick="document.getElementById(\''+prefix+'-file\').click()">'+(data.img?'<img src="'+data.img+'"/>':'<div class="img-placeholder">📷<br>Photo</div>')+'</div>'+
+    '<input type="file" id="'+prefix+'-file" accept="image/*" style="display:none" onchange="handleImageUploadModal(event,\''+prefix+'\')"/>'+
+    '<div style="flex:1">'+
+      '<div class="color-row" style="margin-bottom:12px"><div style="flex:1"><label class="lbl">Couleur *</label><input value="'+esc(data.color)+'" oninput="updateFieldLive(\''+prefix+'\',\'color\',this.value)" placeholder="Ex: Lilac Purple"/></div><div><label class="lbl">Hex</label><input type="color" value="'+data.hex+'" class="hex-picker" oninput="updateFieldLive(\''+prefix+'\',\'hex\',this.value)"/></div></div>'+
+    '</div></div>'+
+    '<div class="form-row"><div class="form-group"><label class="lbl">Marque *</label><div class="brand-dropdown"><input id="'+prefix+'-brand-input" value="'+esc(data.brand)+'" onfocus="showBrandDropdown(\''+prefix+'\')" oninput="updateFieldLive(\''+prefix+'\',\'brand\',this.value)" onblur="hideBrandDropdown()" placeholder="Rechercher ou ajouter une marque..."/><div id="brand-dd"></div></div></div>'+
+    '<div class="form-group"><label class="lbl">Type</label><select onchange="handleTypeChangeLive(\''+prefix+'\',this.value)">'+typeOpts+'</select></div></div>'+
+    '<div id="'+prefix+'-dup-warning"></div>'+
+    '<div class="form-row"><div class="form-group"><label class="lbl">Statut</label><select onchange="updateFieldLive(\''+prefix+'\',\'status\',this.value)">'+statusOpts+'</select></div>'+
+    '<div class="form-group"><label class="lbl">Avis</label><select onchange="updateFieldLive(\''+prefix+'\',\'rating\',this.value)">'+ratingOpts+'</select></div></div>'+
+    '<div class="form-row"><div class="form-group"><label class="lbl">Temp. buse</label><input id="'+prefix+'-tempPrint" value="'+esc(data.tempPrint)+'" oninput="updateFieldLive(\''+prefix+'\',\'tempPrint\',this.value)" placeholder="190–230°C"/></div>'+
+    '<div class="form-group"><label class="lbl">🛏️ Temp. lit</label><input id="'+prefix+'-bedTemp" value="'+esc(data.bedTemp)+'" oninput="updateFieldLive(\''+prefix+'\',\'bedTemp\',this.value)" placeholder="35–45°C"/></div></div>'+
+    '<div class="form-row"><div class="form-group"><label class="lbl">💨 Séchage</label><input id="'+prefix+'-drying" value="'+esc(data.drying)+'" oninput="updateFieldLive(\''+prefix+'\',\'drying\',this.value)" placeholder="55°C, 8H"/></div>'+
+    '<div class="form-group"><label class="lbl">🚀 Vitesse impression</label><input value="'+esc(data.speed||"")+'" oninput="updateFieldLive(\''+prefix+'\',\'speed\',this.value)" placeholder="Ex: 50–80 mm/s"/></div></div>'+
+    '<div class="form-row"><div class="form-group"><label class="lbl">Code filament</label><input value="'+esc(data.code)+'" oninput="updateFieldLive(\''+prefix+'\',\'code\',this.value)" placeholder="Ex: 11700, 10200..."/></div>'+
+    '<div class="form-group"><label class="lbl">📦 Nb. rouleaux</label><input type="number" min="0" value="'+(data.qty!=null?data.qty:1)+'" oninput="updateFieldLive(\''+prefix+'\',\'qty\',Math.max(0,+this.value||0))" style="text-align:center"/></div></div>'+
+    '<div class="form-group"><label class="lbl" id="'+prefix+'-pct-label">Restant: '+data.pct+'% (~'+Math.round(data.pct*10)+'g)</label><input type="range" min="0" max="100" value="'+data.pct+'" oninput="updateFieldLive(\''+prefix+'\',\'pct\',+this.value)" style="width:100%;accent-color:#7C4DFF"/></div>'+
+    '<div class="form-group"><label class="lbl">📝 Notes</label><textarea oninput="updateFieldLive(\''+prefix+'\',\'notes\',this.value)" placeholder="Ex: Bon pour les figurines...">'+esc(data.notes||"")+'</textarea></div>';
+}
+
+function renderFilterPanel(){
+  if(!showFilter)return"";
+  var brands=getAllBrands(),types=getAllTypes();
+  function chip(active,label,onclick,ac){ac=ac||"#7C4DFF";var bg=active?ac+"22":"#2A2A3E",c=active?ac:"#888",brd=active?"1px solid "+ac:"1px solid #333";return'<button class="chip" style="background:'+bg+';color:'+c+';border:'+brd+'" onclick="'+onclick+'">'+label+'</button>'}
+  var sortOpts=SORT_OPTIONS.map(function(o){return'<option value="'+o.v+'" '+(sortVal===o.v?'selected':'')+'>'+o.l+'</option>'}).join("");
+  return'<div class="filter-panel"><div class="filter-header"><span style="font-weight:700">⚙️ Filtres & Tri</span><div><button onclick="resetFilters()" style="background:none;border:none;color:#7C4DFF;cursor:pointer;font-size:12px;margin-right:12px">Réinitialiser</button><button onclick="showFilter=false;renderMain()" style="background:none;border:none;color:#888;cursor:pointer;font-size:18px">✕</button></div></div>'+
+    '<div class="sec-title">🔀 Trier par</div><select onchange="sortVal=this.value;renderMain()" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid #3A3A50;background:#2A2A3E;color:#F0F0F0;font-size:14px"><option value="">Par défaut</option>'+sortOpts+'</select>'+
+    '<div class="sec-title">🏷️ Marque</div><div class="chip-wrap">'+chip(fB==="all","Toutes","fB=\'all\';renderMain()")+brands.map(function(b){return chip(fB===b,esc(b),"fB=fB==='"+esc(b)+"'?'all':'"+esc(b)+"';renderMain()")}).join("")+'</div>'+
+    '<div class="sec-title">📦 Type</div><div class="chip-wrap">'+chip(fT==="all","Tous","fT=\'all\';renderMain()")+types.map(function(t){return chip(fT===t,esc(t),"fT=fT==='"+esc(t)+"'?'all':'"+esc(t)+"';renderMain()")}).join("")+'</div>'+
+    '<div class="sec-title">📊 Statut</div><div class="chip-wrap">'+chip(fS==="all","Tous","fS=\'all\';renderMain()")+Object.keys(STATUS_CFG).map(function(k){var v=STATUS_CFG[k];return chip(fS===k,v.label,"fS=fS==='"+k+"'?'all':'"+k+"';renderMain()",v.border)}).join("")+'</div>'+
+    '<div class="sec-title">⚖️ % Restant: '+pMin+'% – '+pMax+'%</div><div class="range-labels"><span>0%</span><span>100%</span></div>'+
+    '<div style="position:relative;height:30px;margin-top:4px"><input type="range" min="0" max="100" value="'+pMin+'" class="hidden-range" style="z-index:2" oninput="if(+this.value<=pMax){pMin=+this.value;renderMain()}"/><input type="range" min="0" max="100" value="'+pMax+'" class="hidden-range" style="z-index:3" oninput="if(+this.value>=pMin){pMax=+this.value;renderMain()}"/><div class="range-track"><div class="range-fill" style="left:'+pMin+'%;width:'+(pMax-pMin)+'%"></div></div></div></div>';
+}
+function renderSelectBar(){
+  if(!selectMode)return"";
+  var f=getFiltered(),allSel=selected.size===f.length&&f.length>0;
+  return'<div class="select-bar"><button class="select-bar-btn" style="background:#2A2A3E;color:#DDD" onclick="selectAll()">'+(allSel?"☐ Désélectionner":"☑ Tout sélectionner")+'</button><span style="font-size:13px;color:#B39DDB;font-weight:600">'+selected.size+' sélectionné'+(selected.size>1?'s':'')+'</span><div style="flex:1"></div>'+
+    (selected.size?'<button class="select-bar-btn" style="background:#7C4DFF;color:#fff" onclick="exportSelectedJSON()">📤 JSON</button><button class="select-bar-btn" style="background:#00897B;color:#fff" onclick="exportCSV()">📥 CSV</button><button class="select-bar-btn" style="background:#F4433644;color:#F44336" onclick="deleteSelected()">🗑️</button>':'')+
+    '<button class="select-bar-btn" style="background:#333;color:#AAA" onclick="toggleSelectMode()">✕</button></div>';
+}
+
+// ── RENDER: Main ──
+function renderMain(){
+  var filtered=getFiltered(),stats=getStats(),afc=getAFC();
+  document.getElementById('app').innerHTML=
+  '<div class="container"><div class="sticky-header"><div style="text-align:center;margin-bottom:16px"><h1>🧵 Filament Tracker</h1><p style="color:#777;font-size:13px;margin:4px 0 0">Gestion de ton inventaire de filaments 3D</p><p style="color:#555;font-size:11px;margin:2px 0 0">💾 Sauvegarde automatique</p></div>'+
+    '<div class="stats-grid">'+[{l:"Total",v:stats.total,bg:"#7C4DFF22",c:"#B39DDB"},{l:"Neufs",v:stats.new_,bg:"#4CAF5022",c:"#81C784"},{l:"En cours",v:stats.inuse,bg:"#FF980022",c:"#FFB74D"},{l:"Terminés",v:stats.empty,bg:"#F4433622",c:"#E57373"}].map(function(s){return'<div class="stat-card" style="background:'+s.bg+'"><div class="stat-val" style="color:'+s.c+'">'+s.v+'</div><div class="stat-lbl">'+s.l+'</div></div>'}).join("")+'</div>'+
+    '<div class="toolbar"><input class="search-input" placeholder="🔍 Rechercher..." value="'+esc(search)+'" oninput="search=this.value;renderMain()"/>'+
+    '<div class="view-toggle"><button class="view-btn" style="background:'+(viewMode==='list'?'#7C4DFF':'#2A2A3E')+';color:'+(viewMode==='list'?'#fff':'#777')+'" onclick="viewMode=\'list\';renderMain()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button><button class="view-btn" style="background:'+(viewMode==='grid'?'#7C4DFF':'#2A2A3E')+';color:'+(viewMode==='grid'?'#fff':'#777')+'" onclick="viewMode=\'grid\';renderMain()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button></div>'+
+    '<button class="btn" onclick="showImages=!showImages;renderMain()" title="'+(showImages?'Afficher couleurs hex':'Afficher images')+'" style="font-size:16px;padding:8px 12px">'+(showImages?'🎨':'🖼️')+'</button>'+
+    '<button class="btn" style="'+(afc?'border-color:#7C4DFF;background:#7C4DFF22;color:#B39DDB':'')+'" onclick="showFilter=!showFilter;renderMain()">⚙️ Filtres'+(afc?'<span class="badge">'+afc+'</span>':'')+'</button>'+
+    '<button class="btn" style="'+(selectMode?'border-color:#7C4DFF;background:#7C4DFF22;color:#B39DDB':'')+'" onclick="toggleSelectMode()">☑️</button>'+
+    '<button class="btn" onclick="openImportModal()">📥 Import</button>'+
+    '<button class="btn-primary" onclick="addModal=true;dupWarning=\'\';renderModals()">+ Ajouter</button></div>'+
+    renderSelectBar()+renderFilterPanel()+'</div>'+
+    ((afc>0||search)?'<div style="font-size:12px;color:#888;margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>'+filtered.length+' résultat'+(filtered.length>1?'s':'')+' sur '+spools.length+'</span>'+(afc>0?'<button onclick="resetFilters()" style="background:none;border:none;color:#7C4DFF;cursor:pointer;font-size:12px;text-decoration:underline">Effacer les filtres</button>':'')+'</div>':'')+
+    (filtered.length===0?'<div style="text-align:center;color:#666;padding:40px">Aucun filament trouvé</div>':'')+
+    (viewMode==="list"?'<div class="spool-list">'+filtered.map(renderSpoolList).join("")+'</div>':'<div class="spool-grid">'+filtered.map(renderSpoolGrid).join("")+'</div>')+
+    '<div style="text-align:center;margin-top:24px;font-size:12px;color:#555">'+spools.length+' référence'+(spools.length>1?'s':'')+' · '+spools.reduce(function(a,s){return a+(s.qty||1)},0)+' rouleau'+(spools.reduce(function(a,s){return a+(s.qty||1)},0)>1?'x':'')+' · ~'+Math.round(spools.reduce(function(a,s){return a+s.pct*10*(s.qty||1)},0))+'g total</div>'+
+    '<div style="text-align:center;margin-top:12px"><button onclick="resetData()" style="background:none;border:none;color:#555;font-size:11px;cursor:pointer;text-decoration:underline">🔄 Réinitialiser l\'inventaire</button></div></div>';
+}
+
+// ── RENDER: Modals ──
+function renderModals(){
+  var root=document.getElementById('modal-root');var html="";
+  if(addModal){
+    var ok=canSubmitNew();
+    html+='<div class="modal-overlay" onclick="addModal=false;dupWarning=\'\';renderModals()"><div class="modal-content" onclick="event.stopPropagation()"><button class="modal-close" onclick="addModal=false;dupWarning=\'\';renderModals()">✕</button>'+
+      '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;display:flex;align-items:center;gap:10px">➕ Nouveau filament'+(lastAddedSpool?'<button onclick="addAndDuplicate()" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #7C4DFF44;background:#7C4DFF15;color:#B39DDB;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:4px" title="Dupliquer le dernier filament ajouté">📋 Dupliquer</button>':'')+'</h2>'+
+      renderFormFields(newSpool,'add')+
+      '<div id="add-modal-footer" style="display:flex;gap:10px;margin-top:20px">'+
+        '<button class="btn-save" onclick="addSpoolAction()" style="flex:3;opacity:'+(ok?'1':'0.4')+'"'+(ok?'':' disabled')+'>Ajouter à l\'inventaire</button>'+
+        '<button class="'+(ok?'dup-btn-on':'dup-btn-off')+'" onclick="'+(ok?'addAndDuplicate()':'void(0)')+'" title="Ajouter et dupliquer"'+(ok?'':' disabled')+'>📋</button>'+
+      '</div></div></div>';
+  }
+  if(editModal){
+    html+='<div class="modal-overlay" onclick="editModal=null;dupWarning=\'\';renderModals()"><div class="modal-content" onclick="event.stopPropagation()"><button class="modal-close" onclick="editModal=null;dupWarning=\'\';renderModals()">✕</button>'+
+      '<h2 style="margin:0 0 18px;font-size:20px;font-weight:700;display:flex;align-items:center;gap:10px">✏️ Modifier<button onclick="duplicateFromEdit()" style="font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid #7C4DFF44;background:#7C4DFF15;color:#B39DDB;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:4px" title="Dupliquer ce filament">📋 Dupliquer</button></h2>'+
+      renderFormFields(editModal,'edit')+
+      '<div style="display:flex;gap:10px;margin-top:20px"><button class="btn-save" style="flex:1" onclick="saveEditAction()">Sauvegarder</button><button class="btn-delete" onclick="deleteSpool('+editModal.id+')">🗑️</button></div></div></div>';
+  }
+  if(importModal){
+    var allSel=importSelected.size===importData.length&&importData.length>0;
+    html+='<div class="modal-overlay" onclick="closeImportModal()"><div class="modal-content" onclick="event.stopPropagation()" style="max-width:520px"><button class="modal-close" onclick="closeImportModal()">✕</button><h2 style="margin:0 0 6px;font-size:20px;font-weight:700">📥 Importer des filaments</h2><p style="font-size:12px;color:#888;margin-bottom:16px">Supporte <strong>.json</strong> et <strong>.csv</strong></p>'+
+    '<div class="import-zone" onclick="document.getElementById(\'import-file-input\').click()" ondragover="event.preventDefault();this.classList.add(\'dragover\')" ondragleave="this.classList.remove(\'dragover\')" ondrop="event.preventDefault();this.classList.remove(\'dragover\');handleImportFile(event)"><div style="font-size:36px;margin-bottom:8px">📁</div><div style="font-size:14px;font-weight:600;color:#B39DDB">Glisser un fichier ici</div><div style="font-size:12px;color:#777;margin-top:4px">ou cliquer pour parcourir</div></div>'+
+    '<input type="file" id="import-file-input" accept=".json,.csv" style="display:none" onchange="handleImportFile(event)"/>'+
+    (importError?'<div style="margin-top:12px;padding:10px;background:#F4433622;border-radius:10px;color:#EF5350;font-size:13px">'+importError+'</div>':'')+
+    (importData.length?
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;margin-bottom:8px"><span style="font-size:13px;font-weight:700;color:#CCC">'+importData.length+' filament'+(importData.length>1?'s':'')+' trouvé'+(importData.length>1?'s':'')+'</span><button onclick="toggleImportAll()" style="background:none;border:none;color:#7C4DFF;cursor:pointer;font-size:12px;font-weight:600">'+(allSel?'Désélectionner':'Tout sélectionner')+'</button></div>'+
+      '<div class="import-preview">'+importData.map(function(s,i){var sel=importSelected.has(i);return'<div class="import-item" onclick="toggleImportItem('+i+')" style="'+(sel?'border:1px solid #7C4DFF44':'border:1px solid transparent')+'"><div class="select-checkbox '+(sel?'checked':'')+'" style="position:static;width:20px;height:20px;font-size:11px">'+(sel?'✓':'')+'</div><div class="color-dot" style="background:'+s.hex+'"></div><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px">'+esc(s.color)+'</div><div style="font-size:11px;color:#888">'+esc(s.brand)+' · '+esc(s.type)+(s.code?' #'+esc(s.code):'')+'</div></div><div style="font-size:11px;color:#777">'+s.pct+'%</div></div>'}).join("")+'</div>'+
+      '<button class="btn-save" style="margin-top:16px;opacity:'+(importSelected.size?'1':'0.4')+'" onclick="confirmImport()"'+(importSelected.size?'':' disabled')+'>Importer '+importSelected.size+' filament'+(importSelected.size>1?'s':'')+'</button>'
+    :'')+
+    '</div></div>';
+  }
+  root.innerHTML=html;
+}
+
+loadData();
+</script>
+</body>
+</html>
