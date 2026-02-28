@@ -309,7 +309,13 @@ function deleteSpool(id){
 function addSpoolAction(){
   if(!canSubmitNew())return;
   var dup=checkDuplicate(newSpool);
-  if(dup){dupWarning="⚠️ Un filament identique existe déjà : "+dup.color+" ("+dup.brand+" · "+dup.type+")";renderModals();return}
+  if(dup){
+    spools=spools.map(function(s){return s.id===dup.id?Object.assign({},s,{qty:(s.qty||1)+(newSpool.qty||1)}):s});
+    dupWarning="";lastAddedSpool=Object.assign({},newSpool);newSpool=freshSpool();addModal=false;saveData();renderMain();renderModals();
+    document.getElementById('toast-root').innerHTML='<div class="saved-toast">📦 Rouleau(x) ajouté(s) à '+esc(dup.color)+'</div>';
+    setTimeout(function(){document.getElementById('toast-root').innerHTML=""},2500);
+    return;
+  }
   ensureBrandExists(newSpool.brand);
   var id=Math.max.apply(null,[0].concat(spools.map(function(s){return s.id})))+1;
   spools.push(Object.assign({},newSpool,{id:id}));
@@ -319,7 +325,15 @@ function addSpoolAction(){
 function addAndDuplicate(){
   if(!canSubmitNew())return;
   var dup=checkDuplicate(newSpool);
-  if(dup){dupWarning="⚠️ Un filament identique existe déjà : "+dup.color+" ("+dup.brand+" · "+dup.type+")";renderModals();return}
+  if(dup){
+    spools=spools.map(function(s){return s.id===dup.id?Object.assign({},s,{qty:(s.qty||1)+(newSpool.qty||1)}):s});
+    dupWarning="";lastAddedSpool=Object.assign({},newSpool);
+    newSpool=Object.assign({},lastAddedSpool,{color:lastAddedSpool.color+" - copy",img:null});
+    saveData();renderMain();renderModals();
+    document.getElementById('toast-root').innerHTML='<div class="saved-toast">📦 Rouleau(x) ajouté(s) à '+esc(dup.color)+'</div>';
+    setTimeout(function(){document.getElementById('toast-root').innerHTML=""},2500);
+    return;
+  }
   ensureBrandExists(newSpool.brand);
   var id=Math.max.apply(null,[0].concat(spools.map(function(s){return s.id})))+1;
   spools.push(Object.assign({},newSpool,{id:id}));
