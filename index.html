@@ -305,7 +305,7 @@ function duplicateFromEdit(){if(!editModal)return;newSpool=Object.assign({},edit
 
 // ── Inline controls ──
 function cycleStatus(id,e){e.stopPropagation();ratingPopupId=null;statusPopupId=statusPopupId===id?null:id;renderMain()}
-function setStatus(id,st,e){e.stopPropagation();spools=spools.map(function(s){return s.id===id?Object.assign({},s,{status:st}):s});statusPopupId=null;saveData();renderMain()}
+function setStatus(id,st,e){e.stopPropagation();spools=spools.map(function(s){if(s.id===id){var upd={status:st};if(st==="empty"){upd.qty=0;upd.pct=0}else if(st==="new"){if(s.qty===0)upd.qty=1;if(s.pct===0)upd.pct=100}return Object.assign({},s,upd)}return s});statusPopupId=null;saveData();renderMain()}
 function toggleRatingPopup(id,e){e.stopPropagation();statusPopupId=null;ratingPopupId=ratingPopupId===id?null:id;renderMain()}
 function setRating(id,r,e){e.stopPropagation();spools=spools.map(function(s){return s.id===id?Object.assign({},s,{rating:r}):s});ratingPopupId=null;saveData();renderMain()}
 function changeQty(id,d,e){e.stopPropagation();spools=spools.map(function(s){if(s.id===id)return Object.assign({},s,{qty:Math.max(0,(s.qty||0)+d)});return s});saveData();renderMain()}
@@ -377,7 +377,7 @@ function confirmImport(){
 }
 
 // ── Render helpers ──
-function pColor(p){return p>50?"#4CAF50":p>20?"#FF9800":"#F44336"}
+function statusPct(s){return s.status==='new'?100:s.status==='inuse'?50:0}
 function renderCheckbox(id,chk){if(!selectMode)return"";return'<div class="select-checkbox '+(chk?'checked':'')+'" onclick="toggleSelect('+id+',event)">'+(chk?'✓':'')+'</div>'}
 function renderSpoolIcon(s,cls){
   if(showImages&&s.img)return'<div style="position:relative;flex-shrink:0"><img src="'+s.img+'" class="'+cls+'" onclick="openEdit('+s.id+',event)" style="cursor:pointer"/><div class="pastille" style="background:'+s.hex+'"></div></div>';
@@ -400,26 +400,28 @@ function renderSpoolList(s){
   var cls='card-list'+(sel?' selected':'')+(oos?' out-of-stock':'');
   var click=selectMode?'onclick="toggleSelect('+s.id+',event)"':'';
   var pBarColor=st.border;
-  return'<div class="'+cls+'" '+click+'>'+renderCheckbox(s.id,sel)+
+  var cardTitle=s.notes?'title="📝 Note: '+esc(s.notes)+'"':'';
+  return'<div class="'+cls+'" '+click+' '+cardTitle+'>'+renderCheckbox(s.id,sel)+
     '<div style="display:flex;flex-direction:column;align-items:center;gap:6px;'+(selectMode?'margin-left:20px':'')+'">'+renderSpoolIcon(s,'spool-icon')+renderQty(s)+'</div>'+
     '<div style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div class="color-name">'+esc(s.color)+(oos?' <span style="font-size:11px;color:#F44336;font-weight:600">· Épuisé</span>':'')+'</div><div class="brand-type">'+esc(s.brand)+' · '+esc(s.type)+'</div></div>'+
     '<div style="display:flex;align-items:center;gap:6px"><span class="status-col">'+renderRatingBadge(s)+'</span><span class="status-col">'+renderStatusBadge(s)+'</span><button class="edit-btn" onclick="openEdit('+s.id+',event)" title="Modifier">✏️</button></div></div>'+
-    '<div class="specs"><span>🌡️ '+esc(s.tempPrint)+'</span><span>🛏️ '+esc(s.bedTemp||"N/A")+'</span><span>💨 '+esc(s.drying)+'</span>'+(s.speed?'<span>🚀 '+esc(s.speed)+'</span>':'')+(s.code?'<span>#'+esc(s.code)+'</span>':'')+'</div>'+
+    '<div class="specs"><span title="Température de buse">🌡️ '+esc(s.tempPrint)+'</span><span title="Température du lit">🛏️ '+esc(s.bedTemp||"N/A")+'</span><span title="Séchage">💨 '+esc(s.drying)+'</span>'+(s.speed?'<span title="Vitesse d\'impression">🚀 '+esc(s.speed)+'</span>':'')+(s.code?'<span title="Code filament">#'+esc(s.code)+'</span>':'')+'</div>'+
     (s.notes?'<div class="notes-line">📝 '+esc(s.notes)+'</div>':'')+
-    '<div style="display:flex;align-items:center;gap:8px"><div style="flex:1"><div class="progress-bar"><div class="progress-fill" style="width:'+s.pct+'%;background:'+pBarColor+'"></div></div><div class="progress-text">'+s.pct+'% restant · ~'+Math.round(s.pct*10)+'g</div></div><span class="rating-inline" style="display:none">'+renderRatingBadge(s,'bottom:100%;right:0;margin-bottom:4px')+'</span></div></div></div>';
+    '<div style="display:flex;align-items:center;gap:8px"><div style="flex:1"><div class="progress-bar"><div class="progress-fill" style="width:'+statusPct(s)+'%;background:'+pBarColor+'"></div></div><div class="progress-text">'+s.pct+'% restant · ~'+Math.round(s.pct*10)+'g</div></div><span class="rating-inline" style="display:none">'+renderRatingBadge(s,'bottom:100%;right:0;margin-bottom:4px')+'</span></div></div></div>';
 }
 function renderSpoolGrid(s){
   var sel=selected.has(s.id),oos=s.qty===0,st=STATUS_CFG[s.status];
   var cls='card-grid'+(sel?' selected':'')+(oos?' out-of-stock':'');
   var click=selectMode?'onclick="toggleSelect('+s.id+',event)"':'';
-  return'<div class="'+cls+'" '+click+'>'+renderCheckbox(s.id,sel)+
+  var cardTitle=s.notes?'title="📝 Note: '+esc(s.notes)+'"':'';
+  return'<div class="'+cls+'" '+click+' '+cardTitle+'>'+renderCheckbox(s.id,sel)+
     '<button class="edit-btn" style="position:absolute;top:8px;right:8px" onclick="openEdit('+s.id+',event)">✏️</button>'+
     '<div style="position:relative;display:inline-block">'+renderSpoolIcon(s,'spool-icon-grid')+'<div style="position:absolute;top:4px;left:4px">'+renderStatusBadge(s,'top:100%;left:0;margin-top:4px')+'</div></div>'+
     '<div class="color-name" style="font-size:13px;margin-top:4px">'+esc(s.color)+'</div><div class="brand-type">'+esc(s.brand)+' · '+esc(s.type)+'</div>'+
     '<div style="display:flex;justify-content:center;margin-top:6px">'+renderQty(s)+'</div>'+
-    '<div class="specs-grid">🌡️'+esc(s.tempPrint)+'</div><div class="specs-grid">🛏️'+esc(s.bedTemp||"N/A")+' 💨'+esc(s.drying)+'</div>'+
+    '<div class="specs-grid">🌡️'+esc(s.tempPrint)+'</div><div class="specs-grid">🛏️'+esc(s.bedTemp||"N/A")+' 💨'+esc(s.drying)+(s.speed?' 🚀'+esc(s.speed):'')+'</div>'+
     (s.notes?'<div class="notes-line" style="font-size:10px">📝 '+esc(s.notes)+'</div>':'')+
-    '<div class="progress-bar" style="height:4px;margin-top:8px"><div class="progress-fill" style="width:'+s.pct+'%;background:'+st.border+';height:100%"></div></div>'+
+    '<div class="progress-bar" style="height:4px;margin-top:8px"><div class="progress-fill" style="width:'+statusPct(s)+'%;background:'+st.border+';height:100%"></div></div>'+
     '<div class="progress-text">'+s.pct+'%</div></div>';
 }
 
@@ -447,7 +449,18 @@ function checkDupLive(p){
 // ── Form ──
 function updateFieldLive(p,f,v){
   if(p==='add')newSpool[f]=v;else if(p==='edit'&&editModal)editModal[f]=v;
-  if(f==='pct'){var lbl=document.getElementById(p+'-pct-label');if(lbl)lbl.textContent="Restant: "+v+"% (~"+Math.round(v*10)+"g)"}
+  if(f==='status'&&v==='empty'){
+    updateFieldLive(p,'qty',0);updateFieldLive(p,'pct',0);
+    var qEl=document.getElementById(p+'-qty-input');if(qEl)qEl.value='0';
+    var pEl=document.getElementById(p+'-pct-range');if(pEl)pEl.value='0';
+    var lbl=document.getElementById(p+'-pct-label');if(lbl)lbl.textContent="Restant: 0% (~0g)";
+  }
+  if(f==='status'&&v==='new'){
+    var data=p==='add'?newSpool:editModal;
+    if(data&&data.qty===0){updateFieldLive(p,'qty',1);var qEl2=document.getElementById(p+'-qty-input');if(qEl2)qEl2.value='1'}
+    if(data&&data.pct===0){updateFieldLive(p,'pct',100);var pEl2=document.getElementById(p+'-pct-range');if(pEl2)pEl2.value='100';var lbl3=document.getElementById(p+'-pct-label');if(lbl3)lbl3.textContent="Restant: 100% (~1000g)"}
+  }
+  if(f==='pct'){var lbl2=document.getElementById(p+'-pct-label');if(lbl2)lbl2.textContent="Restant: "+v+"% (~"+Math.round(v*10)+"g)"}
   if(f==='brand'&&brandDropdownOpen===p)renderBrandDD(p);
   if(p==='add'&&(f==='color'||f==='brand'))refreshAddFooter();
   if(f==='color'||f==='brand'||f==='type')checkDupLive(p);
@@ -483,8 +496,8 @@ function renderFormFields(data,p){
     '<div class="form-row"><div class="form-group"><label class="lbl">💨 Séchage</label><input id="'+p+'-drying" value="'+esc(data.drying)+'" oninput="updateFieldLive(\''+p+'\',\'drying\',this.value)" placeholder="55°C, 8H"/></div>'+
     '<div class="form-group"><label class="lbl">🚀 Vitesse</label><input value="'+esc(data.speed||"")+'" oninput="updateFieldLive(\''+p+'\',\'speed\',this.value)" placeholder="50–80 mm/s"/></div></div>'+
     '<div class="form-row"><div class="form-group"><label class="lbl">Code filament</label><input value="'+esc(data.code)+'" oninput="updateFieldLive(\''+p+'\',\'code\',this.value)" placeholder="Ex: 11700"/></div>'+
-    '<div class="form-group"><label class="lbl">📦 Nb. rouleaux</label><input type="number" min="0" value="'+(data.qty!=null?data.qty:1)+'" oninput="updateFieldLive(\''+p+'\',\'qty\',Math.max(0,+this.value||0))" style="text-align:center"/></div></div>'+
-    '<div class="form-group"><label class="lbl" id="'+p+'-pct-label">Restant: '+data.pct+'% (~'+Math.round(data.pct*10)+'g)</label><input type="range" min="0" max="100" value="'+data.pct+'" oninput="updateFieldLive(\''+p+'\',\'pct\',+this.value)" style="width:100%;accent-color:#7C4DFF"/></div>'+
+    '<div class="form-group"><label class="lbl">📦 Nb. rouleaux</label><input type="number" min="0" id="'+p+'-qty-input" value="'+(data.qty!=null?data.qty:1)+'" oninput="updateFieldLive(\''+p+'\',\'qty\',Math.max(0,+this.value||0))" style="text-align:center"/></div></div>'+
+    '<div class="form-group"><label class="lbl" id="'+p+'-pct-label">Restant: '+data.pct+'% (~'+Math.round(data.pct*10)+'g)</label><input type="range" min="0" max="100" id="'+p+'-pct-range" value="'+data.pct+'" oninput="updateFieldLive(\''+p+'\',\'pct\',+this.value)" style="width:100%;accent-color:#7C4DFF"/></div>'+
     '<div class="form-group"><label class="lbl">📝 Notes</label><textarea oninput="updateFieldLive(\''+p+'\',\'notes\',this.value)" placeholder="Ex: Bon pour les figurines...">'+esc(data.notes||"")+'</textarea></div>';
 }
 
@@ -508,6 +521,18 @@ function renderSelectBar(){
     '<button class="select-bar-btn" style="background:#333;color:#AAA" onclick="toggleSelectMode()">✕</button></div>';
 }
 
+// ── List-only render (keeps focus on search) ──
+function renderList(){
+  var fl=getFiltered(),afc=getAFC(),tQty=spools.reduce(function(a,s){return a+(s.qty||0)},0);
+  var el=document.getElementById('spool-content');if(!el){renderMain();return}
+  el.innerHTML=
+    ((afc>0||search)?'<div style="font-size:12px;color:#888;margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>'+fl.length+' résultat'+(fl.length>1?'s':'')+' sur '+spools.length+'</span>'+(afc>0?'<button onclick="resetFilters()" style="background:none;border:none;color:#7C4DFF;cursor:pointer;font-size:12px;text-decoration:underline">Effacer</button>':'')+'</div>':'')+
+    (fl.length===0?'<div style="text-align:center;color:#666;padding:40px">Aucun filament trouvé</div>':'')+
+    (viewMode==="list"?'<div class="spool-list">'+fl.map(renderSpoolList).join("")+'</div>':'<div class="spool-grid">'+fl.map(renderSpoolGrid).join("")+'</div>')+
+    '<div style="text-align:center;margin-top:24px;font-size:12px;color:#555">'+spools.length+' réf. · '+tQty+' rouleau'+(tQty>1?'x':'')+' · ~'+Math.round(spools.reduce(function(a,s){return a+s.pct*10*(s.qty||0)},0))+'g</div>'+
+    '<div style="text-align:center;margin-top:12px"><button onclick="resetData()" style="background:none;border:none;color:#555;font-size:11px;cursor:pointer;text-decoration:underline">🔄 Réinitialiser</button></div>';
+}
+
 // ── Main render ──
 function renderMain(){
   try{
@@ -515,7 +540,7 @@ function renderMain(){
   document.getElementById('app').innerHTML=
   '<div class="container"><div class="mobile-top"><div class="title-block" style="text-align:center;margin-bottom:16px;padding-top:24px"><h1>🧵 Filament Tracker</h1><p style="color:#777;font-size:13px;margin:4px 0 0">Gestion de ton inventaire de filaments 3D</p><p style="color:#555;font-size:11px;margin:2px 0 0">💾 Sauvegarde automatique</p></div>'+
     '<div class="stats-grid">'+[{l:"Total",v:st.total,bg:"#7C4DFF22",c:"#B39DDB"},{l:"Neufs",v:st.new_,bg:"#4CAF5022",c:"#81C784"},{l:"En cours",v:st.inuse,bg:"#FF980022",c:"#FFB74D"},{l:"Terminés",v:st.empty,bg:"#F4433622",c:"#E57373"}].map(function(s){return'<div class="stat-card" style="background:'+s.bg+'"><div class="stat-val" style="color:'+s.c+'">'+s.v+'</div><div class="stat-lbl">'+s.l+'</div></div>'}).join("")+'</div></div>'+
-    '<div class="sticky-header"><div class="toolbar"><input class="search-input" placeholder="🔍 Rechercher..." value="'+esc(search)+'" oninput="search=this.value;renderMain()"/>'+
+    '<div class="sticky-header"><div class="toolbar"><input class="search-input" id="search-input" placeholder="🔍 Rechercher..." value="'+esc(search)+'" oninput="search=this.value;renderList()"/>'+
     '<div class="view-toggle"><button class="view-btn" style="background:'+(viewMode==='list'?'#7C4DFF':'#2A2A3E')+';color:'+(viewMode==='list'?'#fff':'#777')+'" onclick="viewMode=\'list\';renderMain()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button><button class="view-btn" style="background:'+(viewMode==='grid'?'#7C4DFF':'#2A2A3E')+';color:'+(viewMode==='grid'?'#fff':'#777')+'" onclick="viewMode=\'grid\';renderMain()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button></div>'+
     '<button class="btn" onclick="showImages=!showImages;renderMain()" title="'+(showImages?'Couleurs hex':'Images')+'" style="font-size:16px;padding:8px 12px">'+(showImages?'🎨':'🖼️')+'</button>'+
     '<button class="btn" style="'+(afc?'border-color:#7C4DFF;background:#7C4DFF22;color:#B39DDB':'')+'" onclick="showFilter=!showFilter;renderMain()">⚙️<span class="btn-text"> Filtres</span>'+(afc?'<span class="badge">'+afc+'</span>':'')+'</button>'+
@@ -523,11 +548,12 @@ function renderMain(){
     '<button class="btn" onclick="openImportModal()">📥</button>'+
     '<button class="btn-primary" onclick="addModal=true;dupWarning=\'\';renderModals()">+ Ajouter</button></div>'+
     renderSelectBar()+renderFilterPanel()+'</div>'+
+    '<div id="spool-content">'+
     ((afc>0||search)?'<div style="font-size:12px;color:#888;margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>'+fl.length+' résultat'+(fl.length>1?'s':'')+' sur '+spools.length+'</span>'+(afc>0?'<button onclick="resetFilters()" style="background:none;border:none;color:#7C4DFF;cursor:pointer;font-size:12px;text-decoration:underline">Effacer</button>':'')+'</div>':'')+
     (fl.length===0?'<div style="text-align:center;color:#666;padding:40px">Aucun filament trouvé</div>':'')+
     (viewMode==="list"?'<div class="spool-list">'+fl.map(renderSpoolList).join("")+'</div>':'<div class="spool-grid">'+fl.map(renderSpoolGrid).join("")+'</div>')+
     '<div style="text-align:center;margin-top:24px;font-size:12px;color:#555">'+spools.length+' réf. · '+tQty+' rouleau'+(tQty>1?'x':'')+' · ~'+Math.round(spools.reduce(function(a,s){return a+s.pct*10*(s.qty||0)},0))+'g</div>'+
-    '<div style="text-align:center;margin-top:12px"><button onclick="resetData()" style="background:none;border:none;color:#555;font-size:11px;cursor:pointer;text-decoration:underline">🔄 Réinitialiser</button></div></div>';
+    '<div style="text-align:center;margin-top:12px"><button onclick="resetData()" style="background:none;border:none;color:#555;font-size:11px;cursor:pointer;text-decoration:underline">🔄 Réinitialiser</button></div></div></div>';
   }catch(e){console.error("Render error:",e);document.getElementById('app').innerHTML='<div style="padding:40px;text-align:center;color:#F44336">Erreur d\'affichage. <button onclick="resetData()" style="color:#7C4DFF;background:none;border:none;cursor:pointer;text-decoration:underline">Réinitialiser</button></div>'}
 }
 
