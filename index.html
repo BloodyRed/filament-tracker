@@ -131,6 +131,13 @@ h1{font-size:26px;font-weight:800;background:linear-gradient(135deg,#7C4DFF,#00B
 .install-banner{position:fixed;bottom:0;left:0;right:0;background:#1E1E2E;border-top:1px solid #3A3A50;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;z-index:900;gap:12px}
 .install-banner-btn{padding:10px 20px;border-radius:12px;border:none;background:linear-gradient(135deg,#7C4DFF,#536DFE);color:#fff;font-weight:700;cursor:pointer;font-size:13px;white-space:nowrap}
 .install-banner-close{background:none;border:none;color:#777;font-size:20px;cursor:pointer;padding:4px}
+.sync-indicator{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:8px;white-space:nowrap}
+.sync-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sync-config{background:#1A1A2E;border-radius:16px;padding:16px;margin-bottom:16px;border:1px solid #2A2A3E}
+.sync-config input{margin-bottom:8px}
+.sync-config-actions{display:flex;gap:8px;margin-top:12px}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.sync-spinning{animation:spin 1s linear infinite;display:inline-block}
 </style>
 </head>
 <body>
@@ -175,23 +182,102 @@ var SORT_OPTIONS=[
 ];
 var SK="filament-tracker-data",BK="filament-tracker-brands";
 
+// ── Cloud Sync (JSONBin.io) ──
+var SYNC_KEY="filament-tracker-sync";
+var syncCfg={apiKey:"",binId:"",enabled:false};
+var syncStatus="idle"; // idle, syncing, success, error
+var syncMsg="";
+var showSyncConfig=false;
+var lastSyncTime=0;
+
+function loadSyncCfg(){try{var s=localStorage.getItem(SYNC_KEY);if(s){syncCfg=JSON.parse(s);syncCfg.enabled=!!(syncCfg.apiKey&&syncCfg.binId)}}catch(e){}}
+function saveSyncCfg(){try{localStorage.setItem(SYNC_KEY,JSON.stringify(syncCfg))}catch(e){}}
+
+function cloudPush(silent){
+  if(!syncCfg.enabled)return Promise.resolve();
+  syncStatus="syncing";syncMsg="";if(!silent)renderSyncUI();
+  var payload=spools.map(function(s){var c=Object.assign({},s);delete c.img;return c});
+  return fetch("https://api.jsonbin.io/v3/b/"+syncCfg.binId,{
+    method:"PUT",
+    headers:{"Content-Type":"application/json","X-Master-Key":syncCfg.apiKey},
+    body:JSON.stringify({spools:payload,brands:BRANDS,updated:Date.now()})
+  }).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json()}).then(function(){
+    syncStatus="success";syncMsg="Synchronisé";lastSyncTime=Date.now();renderSyncUI();
+    setTimeout(function(){if(syncStatus==="success"){syncStatus="idle";renderSyncUI()}},3000);
+  }).catch(function(e){
+    syncStatus="error";syncMsg=e.message||"Erreur";renderSyncUI();
+    console.error("Cloud push error:",e);
+  });
+}
+
+function cloudPull(){
+  if(!syncCfg.enabled)return Promise.resolve();
+  syncStatus="syncing";syncMsg="Récupération...";renderSyncUI();
+  return fetch("https://api.jsonbin.io/v3/b/"+syncCfg.binId+"/latest",{
+    headers:{"X-Master-Key":syncCfg.apiKey}
+  }).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json()}).then(function(data){
+    var rec=data.record||data;
+    if(rec.spools&&Array.isArray(rec.spools)){
+      spools=rec.spools.map(sanitize);
+      if(rec.brands&&Array.isArray(rec.brands))BRANDS=rec.brands;
+      // Save locally
+      try{localStorage.setItem(SK,JSON.stringify(spools.map(function(s){var c=Object.assign({},s);delete c.img;return c})));localStorage.setItem(BK,JSON.stringify(BRANDS))}catch(e){}
+      syncStatus="success";syncMsg="Données récupérées";lastSyncTime=Date.now();
+      renderMain();
+      setTimeout(function(){if(syncStatus==="success"){syncStatus="idle";renderSyncUI()}},3000);
+    } else {throw new Error("Format invalide")}
+  }).catch(function(e){
+    syncStatus="error";syncMsg=e.message||"Erreur";renderSyncUI();
+    console.error("Cloud pull error:",e);
+  });
+}
+
+function cloudCreateBin(){
+  if(!syncCfg.apiKey){syncMsg="Clé API requise";renderSyncUI();return}
+  syncStatus="syncing";syncMsg="Création du bin...";renderSyncUI();
+  var payload=spools.map(function(s){var c=Object.assign({},s);delete c.img;return c});
+  fetch("https://api.jsonbin.io/v3/b",{
+    method:"POST",
+    headers:{"Content-Type":"application/json","X-Master-Key":syncCfg.apiKey,"X-Bin-Name":"filament-tracker","X-Bin-Private":"true"},
+    body:JSON.stringify({spools:payload,brands:BRANDS,updated:Date.now()})
+  }).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json()}).then(function(data){
+    syncCfg.binId=data.metadata.id;syncCfg.enabled=true;saveSyncCfg();
+    syncStatus="success";syncMsg="Bin créé !";lastSyncTime=Date.now();renderSyncUI();
+    toast("☁️ Sync cloud activé !",2500);
+    setTimeout(function(){if(syncStatus==="success"){syncStatus="idle";renderSyncUI()}},3000);
+  }).catch(function(e){
+    syncStatus="error";syncMsg=e.message||"Erreur création";renderSyncUI();
+  });
+}
+
+function renderSyncUI(){
+  var el=document.getElementById('sync-status');if(!el)return;
+  var dot="",txt="";
+  if(syncStatus==="syncing"){dot='<span class="sync-spinning">🔄</span>';txt=syncMsg||"Sync..."}
+  else if(syncStatus==="success"){dot='<span class="sync-dot" style="background:#4CAF50"></span>';txt=syncMsg}
+  else if(syncStatus==="error"){dot='<span class="sync-dot" style="background:#F44336"></span>';txt="❌ "+syncMsg}
+  else if(syncCfg.enabled){dot='<span class="sync-dot" style="background:#4CAF50"></span>';txt="☁️ Connecté"}
+  else{dot='<span class="sync-dot" style="background:#555"></span>';txt="Hors ligne"}
+  el.innerHTML='<span class="sync-indicator" style="background:'+(syncStatus==="error"?"#F4433622":syncCfg.enabled?"#4CAF5015":"#2A2A3E")+'">'+dot+' '+txt+'</span>';
+}
+
+function renderSyncConfig(){
+  if(!showSyncConfig)return"";
+  return'<div class="sync-config"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><span style="font-weight:700">☁️ Synchronisation Cloud</span><button onclick="showSyncConfig=false;renderMain()" style="background:none;border:none;color:#888;cursor:pointer;font-size:18px">✕</button></div>'+
+    '<p style="font-size:12px;color:#888;margin-bottom:12px">Utilise <a href="https://jsonbin.io" target="_blank" style="color:#7C4DFF">jsonbin.io</a> (gratuit) pour synchroniser entre tes appareils.</p>'+
+    '<label class="lbl">🔑 Clé API (X-Master-Key)</label><input id="sync-api-key" value="'+esc(syncCfg.apiKey)+'" placeholder="$2a$10$..." oninput="syncCfg.apiKey=this.value.trim()"/>'+
+    '<label class="lbl" style="margin-top:8px">📦 Bin ID '+(syncCfg.binId?'':'<span style="color:#888;font-weight:400">(laisse vide pour en créer un)</span>')+'</label><input id="sync-bin-id" value="'+esc(syncCfg.binId)+'" placeholder="Ex: 665a1b..." oninput="syncCfg.binId=this.value.trim()"/>'+
+    '<div class="sync-config-actions">'+
+    '<button class="btn-primary" style="flex:1;padding:10px" onclick="syncCfg.enabled=!!(syncCfg.apiKey&&syncCfg.binId);saveSyncCfg();if(syncCfg.enabled){cloudPull()}else if(syncCfg.apiKey&&!syncCfg.binId){cloudCreateBin()}renderSyncUI()">'+
+    (syncCfg.binId?'💾 Sauvegarder & Sync':'🆕 Créer un Bin & Activer')+'</button>'+
+    (syncCfg.enabled?'<button class="btn" style="padding:10px" onclick="cloudPull()">⬇️ Pull</button><button class="btn" style="padding:10px" onclick="cloudPush()">⬆️ Push</button>':'')+
+    '</div>'+
+    (syncCfg.enabled?'<div style="margin-top:10px;font-size:11px;color:#666">Bin ID: <code style="color:#B39DDB">'+esc(syncCfg.binId)+'</code> — copie cet ID sur tes autres appareils</div>':'')+
+    '</div>';
+}
+
 var DEFAULT_SPOOLS=[
 {id:1,brand:"Bambu Lab",type:"PLA Matte",color:"Lilac Purple",code:"11700",hex:"#B39DDB",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",speed:"",qty:1,status:"new",pct:100,img:null,notes:"",rating:"none"},
-{id:2,brand:"Bambu Lab",type:"PLA Matte",color:"Ivory White",code:"11100",hex:"#F5F5F0",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",speed:"",qty:1,status:"new",pct:100,img:null,notes:"",rating:"none"},
-{id:3,brand:"Bambu Lab",type:"PLA Matte",color:"Latte Brown",code:"11800",hex:"#D4A88C",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",speed:"",qty:1,status:"new",pct:100,img:null,notes:"",rating:"none"},
-{id:4,brand:"Bambu Lab",type:"PLA Matte",color:"Dark Green",code:"11501",hex:"#2E5A2E",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",speed:"",qty:1,status:"new",pct:100,img:null,notes:"",rating:"none"},
-{id:5,brand:"Bambu Lab",type:"PLA Matte",color:"Desert Tan",code:"11401",hex:"#E8D5A3",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",speed:"",qty:1,status:"new",pct:100,img:null,notes:"",rating:"none"},
-{id:6,brand:"Bambu Lab",type:"PLA Matte",color:"Charcoal",code:"11101",hex:"#3A3A3A",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",speed:"",qty:1,status:"new",pct:100,img:null,notes:"",rating:"none"},
-{id:7,brand:"Bambu Lab",type:"PLA Matte",color:"Dark Blue",code:"11602",hex:"#1A3A5C",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",speed:"",qty:1,status:"new",pct:100,img:null,notes:"",rating:"none"},
-{id:8,brand:"Bambu Lab",type:"PLA Matte",color:"Grass Green",code:"11500",hex:"#7BC8A4",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",speed:"",qty:1,status:"new",pct:100,img:null,notes:"",rating:"none"},
-{id:9,brand:"Bambu Lab",type:"PLA Basic",color:"Red",code:"10200",hex:"#E53935",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",speed:"",qty:1,status:"new",pct:100,img:null,notes:"",rating:"none"},
-{id:10,brand:"Bambu Lab",type:"PLA Basic",color:"Pumpkin Orange",code:"10301",hex:"#F57C00",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",speed:"",qty:1,status:"new",pct:100,img:null,notes:"",rating:"none"},
-{id:11,brand:"Bambu Lab",type:"PLA Silk+",color:"Candy Green",code:"13506",hex:"#2E7D32",tempPrint:"190–240°C",bedTemp:"35–45°C",drying:"55°C, 8H",speed:"",qty:1,status:"new",pct:100,img:null,notes:"",rating:"none"},
-{id:12,brand:"Bambu Lab",type:"PLA Silk+",color:"Champagne",code:"13404",hex:"#F0D9A0",tempPrint:"190–240°C",bedTemp:"35–45°C",drying:"55°C, 8H",speed:"",qty:1,status:"new",pct:100,img:null,notes:"",rating:"none"},
-{id:13,brand:"Bambu Lab",type:"PLA Silk+",color:"Blue",code:"13604",hex:"#1565C0",tempPrint:"190–240°C",bedTemp:"35–45°C",drying:"55°C, 8H",speed:"",qty:1,status:"new",pct:100,img:null,notes:"",rating:"none"},
-{id:14,brand:"Bambu Lab",type:"PLA Silk+",color:"Purple",code:"13702",hex:"#5C35A9",tempPrint:"190–240°C",bedTemp:"35–45°C",drying:"55°C, 8H",speed:"",qty:1,status:"new",pct:100,img:null,notes:"",rating:"none"},
-{id:15,brand:"Bambu Lab",type:"PETG Translucent",color:"Translucent Pink",code:"32200",hex:"#F8BBD0",tempPrint:"230–260°C",bedTemp:"65–75°C",drying:"65°C, 8H",speed:"",qty:1,status:"new",pct:100,img:null,notes:"",rating:"none"},
-{id:16,brand:"Bambu Lab",type:"PETG Translucent",color:"Translucent Olive",code:"32500",hex:"#8B9A5B",tempPrint:"230–260°C",bedTemp:"65–75°C",drying:"65°C, 8H",speed:"",qty:1,status:"new",pct:100,img:null,notes:"",rating:"none"},
 ];
 
 // ── Utils ──
@@ -247,6 +333,8 @@ function saveData(){
   spools.forEach(function(s){if(s.img)try{localStorage.setItem("fi-img-"+s.id,s.img)}catch(e){}});
   }catch(e){console.error("Save error:",e)}
   toast("✅ Sauvegardé");
+  // Auto-push to cloud
+  cloudPush(true);
 }
 function loadImages(){spools.forEach(function(s){if(!s.img)try{var img=localStorage.getItem("fi-img-"+s.id);if(img)s.img=img}catch(e){}})}
 
@@ -619,8 +707,10 @@ function renderMain(){
     '<button class="btn" style="'+(afc?'border-color:#7C4DFF;background:#7C4DFF22;color:#B39DDB':'')+'" onclick="showFilter=!showFilter;renderMain()">⚙️<span class="btn-text"> Filtres</span><span id="filter-badge">'+(afc?'<span class="badge">'+afc+'</span>':'')+'</span></button>'+
     '<button class="btn" style="'+(selectMode?'border-color:#7C4DFF;background:#7C4DFF22;color:#B39DDB':'')+'" onclick="toggleSelectMode()">☑️</button>'+
     '<button class="btn" onclick="openImportModal()">📥</button>'+
+    '<button class="btn" onclick="showSyncConfig=!showSyncConfig;renderMain()" title="Sync cloud" style="'+(syncCfg.enabled?'border-color:#4CAF50;background:#4CAF5015;color:#81C784':'')+'">☁️</button>'+
     '<button class="btn-primary" onclick="addModal=true;dupWarning=\'\';renderModals()">+ Ajouter</button></div>'+
-    renderSelectBar()+'<div id="filter-container">'+buildFilterHTML()+'</div></div>'+
+    '<div id="sync-status"></div>'+
+    renderSelectBar()+renderSyncConfig()+'<div id="filter-container">'+buildFilterHTML()+'</div></div>'+
     '<div id="spool-content">'+
     ((afc>0||search)?'<div style="font-size:12px;color:#888;margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>'+fl.length+' résultat'+(fl.length>1?'s':'')+' sur '+spools.length+'</span>'+(afc>0?'<button onclick="resetFilters()" style="background:none;border:none;color:#7C4DFF;cursor:pointer;font-size:12px;text-decoration:underline">Effacer</button>':'')+'</div>':'')+
     (fl.length===0?'<div style="text-align:center;color:#666;padding:40px">Aucun filament trouvé</div>':'')+
@@ -629,6 +719,7 @@ function renderMain(){
     '<div style="text-align:center;margin-top:12px"><button onclick="resetData()" style="background:none;border:none;color:#555;font-size:11px;cursor:pointer;text-decoration:underline">🔄 Réinitialiser</button></div></div></div>';
   // Bind filter events after DOM is ready
   bindFilterEvents();
+  renderSyncUI();
   }catch(e){console.error("Render error:",e);document.getElementById('app').innerHTML='<div style="padding:40px;text-align:center;color:#F44336">Erreur d\'affichage. <button onclick="resetData()" style="color:#7C4DFF;background:none;border:none;cursor:pointer;text-decoration:underline">Réinitialiser</button></div>'}
 }
 
@@ -663,9 +754,12 @@ function renderModals(){
 }
 
 // ── Init ──
+loadSyncCfg();
 loadData();
 loadImages();
 renderMain();
+// Auto-pull from cloud on load
+if(syncCfg.enabled){setTimeout(function(){cloudPull()},500)}
 </script>
 </body>
 </html>
