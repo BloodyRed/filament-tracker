@@ -203,7 +203,7 @@ function sanitize(s){
 
 // ── State ──
 var spools=[].concat(DEFAULT_SPOOLS.map(sanitize));
-var search="",fB="all",fT="all",fS="all",pMin=0,pMax=100,sortVal="";
+var search="",fB=[],fT=[],fS=[],pMin=0,pMax=100,sortVal="";
 var showFilter=false,viewMode="list",showImages=true;
 var editModal=null,addModal=false,importModal=false;
 var newSpool=freshSpool();
@@ -212,6 +212,7 @@ var importData=[],importSelected=new Set(),importError="";
 var brandDropdownOpen=null,statusPopupId=null,ratingPopupId=null;
 var lastAddedSpool=null,dupWarning="";
 var confirmAction=null;
+var _filterBrands=[],_filterTypes=[];
 
 function freshSpool(){return{brand:"",type:"PLA Basic",color:"",hex:"#888888",code:"",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",speed:"",qty:1,status:"new",pct:100,img:null,notes:"",rating:"none"}}
 function canSubmitNew(){return !!(newSpool.color&&newSpool.brand)}
@@ -243,19 +244,26 @@ function loadData(){
 }
 function saveData(){
   try{var toSave=spools.map(function(s){var c=Object.assign({},s);delete c.img;return c});localStorage.setItem(SK,JSON.stringify(toSave));
-  // save images separately to avoid quota
   spools.forEach(function(s){if(s.img)try{localStorage.setItem("fi-img-"+s.id,s.img)}catch(e){}});
   }catch(e){console.error("Save error:",e)}
   toast("✅ Sauvegardé");
 }
 function loadImages(){spools.forEach(function(s){if(!s.img)try{var img=localStorage.getItem("fi-img-"+s.id);if(img)s.img=img}catch(e){}})}
 
+// ── Multi-select filter toggles ──
+function toggleFilterB(val){var i=fB.indexOf(val);if(i===-1)fB.push(val);else fB.splice(i,1);refreshFilter();renderList()}
+function toggleFilterT(val){var i=fT.indexOf(val);if(i===-1)fT.push(val);else fT.splice(i,1);refreshFilter();renderList()}
+function toggleFilterS(val){var i=fS.indexOf(val);if(i===-1)fS.push(val);else fS.splice(i,1);refreshFilter();renderList()}
+function clearFilterB(){fB=[];refreshFilter();renderList()}
+function clearFilterT(){fT=[];refreshFilter();renderList()}
+function clearFilterS(){fS=[];refreshFilter();renderList()}
+
 // ── Filtering ──
 function getFiltered(){
   var r=spools.filter(function(s){
-    if(fB!=="all"&&s.brand!==fB)return false;
-    if(fT!=="all"&&s.type!==fT)return false;
-    if(fS!=="all"&&s.status!==fS)return false;
+    if(fB.length&&fB.indexOf(s.brand)===-1)return false;
+    if(fT.length&&fT.indexOf(s.type)===-1)return false;
+    if(fS.length&&fS.indexOf(s.status)===-1)return false;
     if(s.pct<pMin||s.pct>pMax)return false;
     if(search&&(s.color+" "+s.brand+" "+s.type+" "+s.code).toLowerCase().indexOf(search.toLowerCase())===-1)return false;
     return true;
@@ -263,13 +271,13 @@ function getFiltered(){
   if(sortVal){var so=SORT_OPTIONS.find(function(o){return o.v===sortVal});if(so)r=r.slice().sort(so.fn)}
   return r;
 }
-function getAFC(){return[fB!=="all",fT!=="all",fS!=="all",pMin>0,pMax<100,sortVal!==""].filter(Boolean).length}
+function getAFC(){return[fB.length>0,fT.length>0,fS.length>0,pMin>0,pMax<100,sortVal!==""].filter(Boolean).length}
 function getAllBrands(){return Array.from(new Set(spools.map(function(s){return s.brand}).filter(Boolean))).sort()}
 function getAllTypes(){return Array.from(new Set(spools.map(function(s){return s.type}).filter(Boolean))).sort()}
 function getStats(){return{total:spools.length,new_:spools.filter(function(s){return s.status==="new"}).length,inuse:spools.filter(function(s){return s.status==="inuse"}).length,empty:spools.filter(function(s){return s.status==="empty"}).length}}
 
 // ── Actions ──
-function resetFilters(){fB="all";fT="all";fS="all";pMin=0;pMax=100;sortVal="";renderMain()}
+function resetFilters(){fB=[];fT=[];fS=[];pMin=0;pMax=100;sortVal="";renderMain()}
 function resetData(){showConfirm("🔄 Réinitialiser","Réinitialiser tout l'inventaire ? Cette action est irréversible.",function(){spools=DEFAULT_SPOOLS.map(sanitize);saveData();renderMain()})}
 function deleteSpool(id){
   var s=spools.find(function(x){return x.id===id});
@@ -501,19 +509,84 @@ function renderFormFields(data,p){
     '<div class="form-group"><label class="lbl">📝 Notes</label><textarea oninput="updateFieldLive(\''+p+'\',\'notes\',this.value)" placeholder="Ex: Bon pour les figurines...">'+esc(data.notes||"")+'</textarea></div>';
 }
 
-function renderFilterPanel(){
+// ── Filter panel (delegated events, multi-select) ──
+function buildFilterHTML(){
   if(!showFilter)return"";
-  var brands=getAllBrands(),types=getAllTypes();
-  function chip(a,l,oc,ac){ac=ac||"#7C4DFF";return'<button class="chip" style="background:'+(a?ac+"22":"#2A2A3E")+';color:'+(a?ac:"#888")+';border:'+(a?"1px solid "+ac:"1px solid #333")+'" onclick="'+oc+'">'+l+'</button>'}
+  _filterBrands=getAllBrands();
+  _filterTypes=getAllTypes();
   var sOpts=SORT_OPTIONS.map(function(o){return'<option value="'+o.v+'"'+(sortVal===o.v?' selected':'')+'>'+o.l+'</option>'}).join("");
-  return'<div class="filter-panel"><div class="filter-header"><span style="font-weight:700">⚙️ Filtres & Tri</span><div><button onclick="resetFilters()" style="background:none;border:none;color:#7C4DFF;cursor:pointer;font-size:12px;margin-right:12px">Réinitialiser</button><button onclick="showFilter=false;renderMain()" style="background:none;border:none;color:#888;cursor:pointer;font-size:18px">✕</button></div></div>'+
-    '<div class="sec-title">🔀 Trier par</div><select onchange="sortVal=this.value;renderMain()" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid #3A3A50;background:#2A2A3E;color:#F0F0F0;font-size:14px"><option value="">Par défaut</option>'+sOpts+'</select>'+
-    '<div class="sec-title">🏷️ Marque</div><div class="chip-wrap">'+chip(fB==="all","Toutes","fB=\'all\';renderMain()")+brands.map(function(b){return chip(fB===b,esc(b),"fB=fB==='"+esc(b)+"'?'all':'"+esc(b)+"';renderMain()")}).join("")+'</div>'+
-    '<div class="sec-title">📦 Type</div><div class="chip-wrap">'+chip(fT==="all","Tous","fT=\'all\';renderMain()")+types.map(function(t){return chip(fT===t,esc(t),"fT=fT==='"+esc(t)+"'?'all':'"+esc(t)+"';renderMain()")}).join("")+'</div>'+
-    '<div class="sec-title">📊 Statut</div><div class="chip-wrap">'+chip(fS==="all","Tous","fS=\'all\';renderMain()")+Object.keys(STATUS_CFG).map(function(k){var v=STATUS_CFG[k];return chip(fS===k,v.label,"fS=fS==='"+k+"'?'all':'"+k+"';renderMain()",v.border)}).join("")+'</div>'+
+  
+  var brandChips='<button class="chip" data-filter="brand-all" style="background:'+(fB.length===0?"#7C4DFF22":"#2A2A3E")+';color:'+(fB.length===0?"#7C4DFF":"#888")+';border:'+(fB.length===0?"1px solid #7C4DFF":"1px solid #333")+'">Toutes</button>';
+  for(var bi=0;bi<_filterBrands.length;bi++){var bAct=fB.indexOf(_filterBrands[bi])!==-1;brandChips+='<button class="chip" data-filter="brand" data-val="'+esc(_filterBrands[bi])+'" style="background:'+(bAct?"#7C4DFF22":"#2A2A3E")+';color:'+(bAct?"#7C4DFF":"#888")+';border:'+(bAct?"1px solid #7C4DFF":"1px solid #333")+'">'+esc(_filterBrands[bi])+'</button>';}
+  
+  var typeChips='<button class="chip" data-filter="type-all" style="background:'+(fT.length===0?"#7C4DFF22":"#2A2A3E")+';color:'+(fT.length===0?"#7C4DFF":"#888")+';border:'+(fT.length===0?"1px solid #7C4DFF":"1px solid #333")+'">Tous</button>';
+  for(var ti=0;ti<_filterTypes.length;ti++){var tAct=fT.indexOf(_filterTypes[ti])!==-1;typeChips+='<button class="chip" data-filter="type" data-val="'+esc(_filterTypes[ti])+'" style="background:'+(tAct?"#7C4DFF22":"#2A2A3E")+';color:'+(tAct?"#7C4DFF":"#888")+';border:'+(tAct?"1px solid #7C4DFF":"1px solid #333")+'">'+esc(_filterTypes[ti])+'</button>';}
+  
+  var statChips='<button class="chip" data-filter="status-all" style="background:'+(fS.length===0?"#7C4DFF22":"#2A2A3E")+';color:'+(fS.length===0?"#7C4DFF":"#888")+';border:'+(fS.length===0?"1px solid #7C4DFF":"1px solid #333")+'">Tous</button>';
+  for(var si=0;si<STATUS_ORDER.length;si++){var sk=STATUS_ORDER[si];var sv=STATUS_CFG[sk];var sAct=fS.indexOf(sk)!==-1;statChips+='<button class="chip" data-filter="status" data-val="'+sk+'" style="background:'+(sAct?sv.border+"22":"#2A2A3E")+';color:'+(sAct?sv.border:"#888")+';border:'+(sAct?"1px solid "+sv.border:"1px solid #333")+'">'+sv.label+'</button>';}
+
+  // Active filter summary
+  var summary='';
+  if(fB.length||fT.length||fS.length){
+    summary='<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:12px;padding-top:10px;border-top:1px solid #2A2A3E">';
+    fB.forEach(function(b){summary+='<span style="background:#7C4DFF33;color:#B39DDB;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px">'+esc(b)+' <span onclick="toggleFilterB(\''+esc(b)+'\')" style="cursor:pointer;opacity:0.7">✕</span></span>'});
+    fT.forEach(function(t){summary+='<span style="background:#00BCD433;color:#80DEEA;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px">'+esc(t)+' <span onclick="toggleFilterT(\''+esc(t)+'\')" style="cursor:pointer;opacity:0.7">✕</span></span>'});
+    fS.forEach(function(k){var sv=STATUS_CFG[k];summary+='<span style="background:'+sv.border+'33;color:'+sv.border+';padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px">'+sv.label+' <span onclick="toggleFilterS(\''+k+'\')" style="cursor:pointer;opacity:0.7">✕</span></span>'});
+    summary+='</div>';
+  }
+
+  return'<div class="filter-panel" id="filter-panel-inner"><div class="filter-header"><span style="font-weight:700">⚙️ Filtres & Tri</span><div><button data-filter="reset" style="background:none;border:none;color:#7C4DFF;cursor:pointer;font-size:12px;margin-right:12px">Réinitialiser</button><button data-filter="close" style="background:none;border:none;color:#888;cursor:pointer;font-size:18px">✕</button></div></div>'+
+    '<div class="sec-title">🔀 Trier par</div><select data-filter="sort" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid #3A3A50;background:#2A2A3E;color:#F0F0F0;font-size:14px"><option value="">Par défaut</option>'+sOpts+'</select>'+
+    '<div class="sec-title">🏷️ Marque'+(fB.length?' <span style="color:#7C4DFF;font-size:11px">('+fB.length+')</span>':'')+'</div><div class="chip-wrap">'+brandChips+'</div>'+
+    '<div class="sec-title">📦 Type'+(fT.length?' <span style="color:#7C4DFF;font-size:11px">('+fT.length+')</span>':'')+'</div><div class="chip-wrap">'+typeChips+'</div>'+
+    '<div class="sec-title">📊 Statut'+(fS.length?' <span style="color:#7C4DFF;font-size:11px">('+fS.length+')</span>':'')+'</div><div class="chip-wrap">'+statChips+'</div>'+
     '<div class="sec-title">⚖️ % Restant: '+pMin+'% – '+pMax+'%</div><div class="range-labels"><span>0%</span><span>100%</span></div>'+
-    '<div style="position:relative;height:30px;margin-top:4px"><input type="range" min="0" max="100" value="'+pMin+'" class="hidden-range" style="z-index:2" oninput="if(+this.value<=pMax){pMin=+this.value;renderMain()}"/><input type="range" min="0" max="100" value="'+pMax+'" class="hidden-range" style="z-index:3" oninput="if(+this.value>=pMin){pMax=+this.value;renderMain()}"/><div class="range-track"><div class="range-fill" style="left:'+pMin+'%;width:'+(pMax-pMin)+'%"></div></div></div></div>';
+    '<div style="position:relative;height:30px;margin-top:4px"><input type="range" min="0" max="100" value="'+pMin+'" data-filter="range-min" class="hidden-range" style="z-index:2"/><input type="range" min="0" max="100" value="'+pMax+'" data-filter="range-max" class="hidden-range" style="z-index:3"/><div class="range-track"><div class="range-fill" style="left:'+pMin+'%;width:'+(pMax-pMin)+'%"></div></div></div>'+
+    summary+'</div>';
 }
+
+function handleFilterClick(e){
+  var btn=e.target.closest('[data-filter]');
+  if(!btn)return;
+  var f=btn.getAttribute('data-filter');
+  if(f==='brand-all'){fB=[];refreshFilter();renderList()}
+  else if(f==='brand'){var bv=btn.getAttribute('data-val');if(bv!==null){var ix=fB.indexOf(bv);if(ix===-1)fB.push(bv);else fB.splice(ix,1);refreshFilter();renderList()}}
+  else if(f==='type-all'){fT=[];refreshFilter();renderList()}
+  else if(f==='type'){var tv=btn.getAttribute('data-val');if(tv!==null){var ix2=fT.indexOf(tv);if(ix2===-1)fT.push(tv);else fT.splice(ix2,1);refreshFilter();renderList()}}
+  else if(f==='status-all'){fS=[];refreshFilter();renderList()}
+  else if(f==='status'){var sk=btn.getAttribute('data-val');if(sk!==null){var ix3=fS.indexOf(sk);if(ix3===-1)fS.push(sk);else fS.splice(ix3,1);refreshFilter();renderList()}}
+  else if(f==='reset'){fB=[];fT=[];fS=[];pMin=0;pMax=100;sortVal="";refreshFilter();renderList()}
+  else if(f==='close'){showFilter=false;renderMain()}
+}
+function handleFilterSort(e){sortVal=e.target.value;renderList()}
+function handleRangeMin(e){if(+e.target.value<=pMax){pMin=+e.target.value;refreshFilter();renderList()}}
+function handleRangeMax(e){if(+e.target.value>=pMin){pMax=+e.target.value;refreshFilter();renderList()}}
+
+function bindFilterEvents(){
+  var container=document.getElementById('filter-container');
+  if(!container)return;
+  // Remove old listeners by replacing node (prevents stacking)
+  var clone=container.cloneNode(true);
+  container.parentNode.replaceChild(clone,container);
+  clone.addEventListener('click',handleFilterClick);
+  var sortEl=clone.querySelector('[data-filter="sort"]');
+  if(sortEl)sortEl.addEventListener('change',handleFilterSort);
+  var rMin=clone.querySelector('[data-filter="range-min"]');
+  var rMax=clone.querySelector('[data-filter="range-max"]');
+  if(rMin)rMin.addEventListener('input',handleRangeMin);
+  if(rMax)rMax.addEventListener('input',handleRangeMax);
+}
+
+function refreshFilter(){
+  var el=document.getElementById('filter-container');
+  if(!el)return;
+  el.innerHTML=buildFilterHTML();
+  bindFilterEvents();
+  var afc=getAFC();
+  var bEl=document.getElementById('filter-badge');
+  if(bEl)bEl.innerHTML=afc?'<span class="badge">'+afc+'</span>':'';
+}
+
 function renderSelectBar(){
   if(!selectMode)return"";var f=getFiltered(),allS=selected.size===f.length&&f.length>0;
   return'<div class="select-bar"><button class="select-bar-btn" style="background:#2A2A3E;color:#DDD" onclick="selectAll()">'+(allS?"☐ Désélectionner":"☑ Tout")+'</button><span style="font-size:13px;color:#B39DDB;font-weight:600">'+selected.size+' sél.</span><div style="flex:1"></div>'+
@@ -543,17 +616,19 @@ function renderMain(){
     '<div class="sticky-header"><div class="toolbar"><input class="search-input" id="search-input" placeholder="🔍 Rechercher..." value="'+esc(search)+'" oninput="search=this.value;renderList()"/>'+
     '<div class="view-toggle"><button class="view-btn" style="background:'+(viewMode==='list'?'#7C4DFF':'#2A2A3E')+';color:'+(viewMode==='list'?'#fff':'#777')+'" onclick="viewMode=\'list\';renderMain()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button><button class="view-btn" style="background:'+(viewMode==='grid'?'#7C4DFF':'#2A2A3E')+';color:'+(viewMode==='grid'?'#fff':'#777')+'" onclick="viewMode=\'grid\';renderMain()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button></div>'+
     '<button class="btn" onclick="showImages=!showImages;renderMain()" title="'+(showImages?'Couleurs hex':'Images')+'" style="font-size:16px;padding:8px 12px">'+(showImages?'🎨':'🖼️')+'</button>'+
-    '<button class="btn" style="'+(afc?'border-color:#7C4DFF;background:#7C4DFF22;color:#B39DDB':'')+'" onclick="showFilter=!showFilter;renderMain()">⚙️<span class="btn-text"> Filtres</span>'+(afc?'<span class="badge">'+afc+'</span>':'')+'</button>'+
+    '<button class="btn" style="'+(afc?'border-color:#7C4DFF;background:#7C4DFF22;color:#B39DDB':'')+'" onclick="showFilter=!showFilter;renderMain()">⚙️<span class="btn-text"> Filtres</span><span id="filter-badge">'+(afc?'<span class="badge">'+afc+'</span>':'')+'</span></button>'+
     '<button class="btn" style="'+(selectMode?'border-color:#7C4DFF;background:#7C4DFF22;color:#B39DDB':'')+'" onclick="toggleSelectMode()">☑️</button>'+
     '<button class="btn" onclick="openImportModal()">📥</button>'+
     '<button class="btn-primary" onclick="addModal=true;dupWarning=\'\';renderModals()">+ Ajouter</button></div>'+
-    renderSelectBar()+renderFilterPanel()+'</div>'+
+    renderSelectBar()+'<div id="filter-container">'+buildFilterHTML()+'</div></div>'+
     '<div id="spool-content">'+
     ((afc>0||search)?'<div style="font-size:12px;color:#888;margin-bottom:10px;display:flex;align-items:center;gap:8px"><span>'+fl.length+' résultat'+(fl.length>1?'s':'')+' sur '+spools.length+'</span>'+(afc>0?'<button onclick="resetFilters()" style="background:none;border:none;color:#7C4DFF;cursor:pointer;font-size:12px;text-decoration:underline">Effacer</button>':'')+'</div>':'')+
     (fl.length===0?'<div style="text-align:center;color:#666;padding:40px">Aucun filament trouvé</div>':'')+
     (viewMode==="list"?'<div class="spool-list">'+fl.map(renderSpoolList).join("")+'</div>':'<div class="spool-grid">'+fl.map(renderSpoolGrid).join("")+'</div>')+
     '<div style="text-align:center;margin-top:24px;font-size:12px;color:#555">'+spools.length+' réf. · '+tQty+' rouleau'+(tQty>1?'x':'')+' · ~'+Math.round(spools.reduce(function(a,s){return a+s.pct*10*(s.qty||0)},0))+'g</div>'+
     '<div style="text-align:center;margin-top:12px"><button onclick="resetData()" style="background:none;border:none;color:#555;font-size:11px;cursor:pointer;text-decoration:underline">🔄 Réinitialiser</button></div></div></div>';
+  // Bind filter events after DOM is ready
+  bindFilterEvents();
   }catch(e){console.error("Render error:",e);document.getElementById('app').innerHTML='<div style="padding:40px;text-align:center;color:#F44336">Erreur d\'affichage. <button onclick="resetData()" style="color:#7C4DFF;background:none;border:none;cursor:pointer;text-decoration:underline">Réinitialiser</button></div>'}
 }
 
