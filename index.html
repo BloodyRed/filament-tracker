@@ -184,25 +184,62 @@ var SK="filament-tracker-data",BK="filament-tracker-brands";
 
 // ── Cloud Sync (JSONBin.io) ──
 var SYNC_KEY="filament-tracker-sync";
-var syncCfg={apiKey:"",binId:"",enabled:false};
+var syncCfg={apiKey:"",binId:"",imgbbKey:"",enabled:false};
 var syncStatus="idle"; // idle, syncing, success, error
 var syncMsg="";
 var showSyncConfig=false;
 var lastSyncTime=0;
+var imgUploadQueue=[];
 
-function loadSyncCfg(){try{var s=localStorage.getItem(SYNC_KEY);if(s){syncCfg=JSON.parse(s);syncCfg.enabled=!!(syncCfg.apiKey&&syncCfg.binId)}}catch(e){}}
+function loadSyncCfg(){try{var s=localStorage.getItem(SYNC_KEY);if(s){syncCfg=JSON.parse(s);if(!syncCfg.imgbbKey)syncCfg.imgbbKey="";syncCfg.enabled=!!(syncCfg.apiKey&&syncCfg.binId)}}catch(e){}}
 function saveSyncCfg(){try{localStorage.setItem(SYNC_KEY,JSON.stringify(syncCfg))}catch(e){}}
+
+function uploadToImgBB(base64data){
+  if(!syncCfg.imgbbKey)return Promise.resolve(base64data);
+  // Strip data:image/...;base64, prefix
+  var raw=base64data;
+  if(raw.indexOf(",")!==-1)raw=raw.split(",")[1];
+  var form=new FormData();
+  form.append("key",syncCfg.imgbbKey);
+  form.append("image",raw);
+  return fetch("https://api.imgbb.com/1/upload",{method:"POST",body:form})
+    .then(function(r){if(!r.ok)throw new Error("ImgBB HTTP "+r.status);return r.json()})
+    .then(function(data){
+      if(data.success&&data.data&&data.data.url)return data.data.url;
+      throw new Error("ImgBB upload failed");
+    }).catch(function(e){console.error("ImgBB error:",e);return base64data});
+}
+
+function ensureImagesUploaded(){
+  // Upload any base64 images to ImgBB, replace with URLs
+  if(!syncCfg.imgbbKey)return Promise.resolve();
+  var promises=[];
+  spools.forEach(function(s){
+    if(s.img&&s.img.indexOf("data:")===0){
+      var p=uploadToImgBB(s.img).then(function(url){
+        s.img=url;
+        // Update local storage too
+        try{localStorage.setItem("fi-img-"+s.id,url)}catch(e){}
+      });
+      promises.push(p);
+    }
+  });
+  return Promise.all(promises);
+}
 
 function cloudPush(silent){
   if(!syncCfg.enabled)return Promise.resolve();
-  syncStatus="syncing";syncMsg="";if(!silent)renderSyncUI();
-  var payload=spools.map(function(s){var c=Object.assign({},s);delete c.img;return c});
-  return fetch("https://api.jsonbin.io/v3/b/"+syncCfg.binId,{
-    method:"PUT",
-    headers:{"Content-Type":"application/json","X-Master-Key":syncCfg.apiKey},
-    body:JSON.stringify({spools:payload,brands:BRANDS,updated:Date.now()})
+  syncStatus="syncing";syncMsg=syncCfg.imgbbKey?"Upload images...":"";if(!silent)renderSyncUI();
+  return ensureImagesUploaded().then(function(){
+    syncMsg="Synchronisation...";if(!silent)renderSyncUI();
+    var payload=spools.map(function(s){var c=Object.assign({},s);return c});
+    return fetch("https://api.jsonbin.io/v3/b/"+syncCfg.binId,{
+      method:"PUT",
+      headers:{"Content-Type":"application/json","X-Master-Key":syncCfg.apiKey},
+      body:JSON.stringify({spools:payload,brands:BRANDS,updated:Date.now()})
+    });
   }).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json()}).then(function(){
-    syncStatus="success";syncMsg="Synchronisé";lastSyncTime=Date.now();renderSyncUI();
+    syncStatus="success";syncMsg="Synchronisé ✓";lastSyncTime=Date.now();renderSyncUI();
     setTimeout(function(){if(syncStatus==="success"){syncStatus="idle";renderSyncUI()}},3000);
   }).catch(function(e){
     syncStatus="error";syncMsg=e.message||"Erreur";renderSyncUI();
@@ -218,11 +255,21 @@ function cloudPull(){
   }).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json()}).then(function(data){
     var rec=data.record||data;
     if(rec.spools&&Array.isArray(rec.spools)){
-      spools=rec.spools.map(sanitize);
+      spools=rec.spools.map(function(s){
+        var clean=sanitize(s);
+        // Keep image URL (could be ImgBB URL or base64)
+        if(s.img)clean.img=s.img;
+        return clean;
+      });
       if(rec.brands&&Array.isArray(rec.brands))BRANDS=rec.brands;
       // Save locally
-      try{localStorage.setItem(SK,JSON.stringify(spools.map(function(s){var c=Object.assign({},s);delete c.img;return c})));localStorage.setItem(BK,JSON.stringify(BRANDS))}catch(e){}
-      syncStatus="success";syncMsg="Données récupérées";lastSyncTime=Date.now();
+      try{
+        localStorage.setItem(SK,JSON.stringify(spools.map(function(s){var c=Object.assign({},s);delete c.img;return c})));
+        localStorage.setItem(BK,JSON.stringify(BRANDS));
+        // Cache images locally
+        spools.forEach(function(s){if(s.img)try{localStorage.setItem("fi-img-"+s.id,s.img)}catch(e){}});
+      }catch(e){}
+      syncStatus="success";syncMsg="Données récupérées ✓";lastSyncTime=Date.now();
       renderMain();
       setTimeout(function(){if(syncStatus==="success"){syncStatus="idle";renderSyncUI()}},3000);
     } else {throw new Error("Format invalide")}
@@ -264,21 +311,24 @@ function renderSyncUI(){
 function renderSyncConfig(){
   if(!showSyncConfig)return"";
   return'<div class="sync-config"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><span style="font-weight:700">☁️ Synchronisation Cloud</span><button onclick="showSyncConfig=false;renderMain()" style="background:none;border:none;color:#888;cursor:pointer;font-size:18px">✕</button></div>'+
-    '<p style="font-size:12px;color:#888;margin-bottom:12px">Utilise <a href="https://jsonbin.io" target="_blank" style="color:#7C4DFF">jsonbin.io</a> (gratuit) pour synchroniser entre tes appareils.</p>'+
+    '<p style="font-size:12px;color:#888;margin-bottom:12px">Utilise <a href="https://jsonbin.io" target="_blank" style="color:#7C4DFF">jsonbin.io</a> (gratuit) pour synchroniser tes données et <a href="https://api.imgbb.com" target="_blank" style="color:#7C4DFF">imgbb.com</a> pour les images.</p>'+
+    '<div style="font-size:12px;font-weight:700;color:#B39DDB;margin:12px 0 8px">📦 JSONBin (données)</div>'+
     '<label class="lbl">🔑 Clé API (X-Master-Key)</label><input id="sync-api-key" value="'+esc(syncCfg.apiKey)+'" placeholder="$2a$10$..." oninput="syncCfg.apiKey=this.value.trim()"/>'+
     '<label class="lbl" style="margin-top:8px">📦 Bin ID '+(syncCfg.binId?'':'<span style="color:#888;font-weight:400">(laisse vide pour en créer un)</span>')+'</label><input id="sync-bin-id" value="'+esc(syncCfg.binId)+'" placeholder="Ex: 665a1b..." oninput="syncCfg.binId=this.value.trim()"/>'+
+    '<div style="font-size:12px;font-weight:700;color:#B39DDB;margin:16px 0 8px">🖼️ ImgBB (images)</div>'+
+    '<p style="font-size:11px;color:#777;margin-bottom:8px">Optionnel. Sans clé ImgBB, les images restent en local seulement. Avec, elles sont uploadées et synchronisées entre appareils.</p>'+
+    '<label class="lbl">🔑 Clé API ImgBB</label><input value="'+esc(syncCfg.imgbbKey)+'" placeholder="Clé API de api.imgbb.com" oninput="syncCfg.imgbbKey=this.value.trim()"/>'+
+    '<p style="font-size:11px;color:#666;margin-top:4px">→ Crée un compte sur <a href="https://api.imgbb.com" target="_blank" style="color:#7C4DFF">api.imgbb.com</a> et copie ta clé API</p>'+
     '<div class="sync-config-actions">'+
     '<button class="btn-primary" style="flex:1;padding:10px" onclick="syncCfg.enabled=!!(syncCfg.apiKey&&syncCfg.binId);saveSyncCfg();if(syncCfg.enabled){cloudPull()}else if(syncCfg.apiKey&&!syncCfg.binId){cloudCreateBin()}renderSyncUI()">'+
     (syncCfg.binId?'💾 Sauvegarder & Sync':'🆕 Créer un Bin & Activer')+'</button>'+
     (syncCfg.enabled?'<button class="btn" style="padding:10px" onclick="cloudPull()">⬇️ Pull</button><button class="btn" style="padding:10px" onclick="cloudPush()">⬆️ Push</button>':'')+
     '</div>'+
-    (syncCfg.enabled?'<div style="margin-top:10px;font-size:11px;color:#666">Bin ID: <code style="color:#B39DDB">'+esc(syncCfg.binId)+'</code> — copie cet ID sur tes autres appareils</div>':'')+
+    (syncCfg.enabled?'<div style="margin-top:10px;padding:10px;background:#2A2A3E;border-radius:10px;font-size:11px;color:#888"><div>📦 Bin: <code style="color:#B39DDB">'+esc(syncCfg.binId)+'</code></div>'+(syncCfg.imgbbKey?'<div style="margin-top:4px">🖼️ ImgBB: <span style="color:#4CAF50">Activé</span> — les images seront synchronisées</div>':'<div style="margin-top:4px">🖼️ ImgBB: <span style="color:#FF9800">Non configuré</span> — images en local uniquement</div>')+'<div style="margin-top:6px;color:#666">Copie le Bin ID + les clés API sur tes autres appareils</div></div>':'')+
     '</div>';
 }
 
-var DEFAULT_SPOOLS=[
-{id:1,brand:"Bambu Lab",type:"PLA Matte",color:"Lilac Purple",code:"11700",hex:"#B39DDB",tempPrint:"190–230°C",bedTemp:"35–45°C",drying:"55°C, 8H",speed:"",qty:1,status:"new",pct:100,img:null,notes:"",rating:"none"},
-];
+var DEFAULT_SPOOLS=[];
 
 // ── Utils ──
 function hexToHSL(hex){try{var r=parseInt(hex.slice(1,3),16)/255,g=parseInt(hex.slice(3,5),16)/255,b=parseInt(hex.slice(5,7),16)/255;var mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2,h=0,s=0;if(mx!==mn){var d=mx-mn;s=l>0.5?d/(2-mx-mn):d/(mx+mn);switch(mx){case r:h=((g-b)/d+(g<b?6:0))*60;break;case g:h=((b-r)/d+2)*60;break;case b:h=((r-g)/d+4)*60;break}}return{h:Math.round(h),s:Math.round(s*100),l:Math.round(l*100)}}catch(e){return{h:0,s:0,l:50}}}
@@ -476,7 +526,10 @@ function confirmImport(){
 function statusPct(s){return s.status==='new'?100:s.status==='inuse'?50:0}
 function renderCheckbox(id,chk){if(!selectMode)return"";return'<div class="select-checkbox '+(chk?'checked':'')+'" onclick="toggleSelect('+id+',event)">'+(chk?'✓':'')+'</div>'}
 function renderSpoolIcon(s,cls){
-  if(showImages&&s.img)return'<div style="position:relative;flex-shrink:0"><img src="'+s.img+'" class="'+cls+'" onclick="openEdit('+s.id+',event)" style="cursor:pointer"/><div class="pastille" style="background:'+s.hex+'"></div></div>';
+  if(showImages&&s.img){
+    var imgSrc=s.img;
+    return'<div style="position:relative;flex-shrink:0"><img src="'+esc(imgSrc)+'" class="'+cls+'" onclick="openEdit('+s.id+',event)" style="cursor:pointer" loading="lazy"/><div class="pastille" style="background:'+s.hex+'"></div></div>';
+  }
   return'<div class="'+cls+'" style="background:'+s.hex+';cursor:pointer" onclick="openEdit('+s.id+',event)"></div>';
 }
 function renderStatusBadge(s,pos){
