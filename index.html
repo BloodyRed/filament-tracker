@@ -227,6 +227,34 @@ function ensureImagesUploaded(){
   return Promise.all(promises);
 }
 
+function uploadAllImages(){
+  if(!syncCfg.imgbbKey){toast("❌ Configure ta clé ImgBB d'abord",2500);return}
+  var toUpload=spools.filter(function(s){return s.img&&s.img.indexOf("data:")===0});
+  if(!toUpload.length){toast("✅ Toutes les images sont déjà synchronisées",2500);return}
+  syncStatus="syncing";syncMsg="Upload 0/"+toUpload.length+" images...";renderSyncUI();
+  var done=0;
+  var chain=Promise.resolve();
+  toUpload.forEach(function(s){
+    chain=chain.then(function(){
+      return uploadToImgBB(s.img).then(function(url){
+        s.img=url;
+        try{localStorage.setItem("fi-img-"+s.id,url)}catch(e){}
+        done++;
+        syncMsg="Upload "+done+"/"+toUpload.length+" images...";renderSyncUI();
+      });
+    });
+  });
+  chain.then(function(){
+    syncMsg="Images uploadées, sync...";renderSyncUI();
+    renderMain();
+    return cloudPush();
+  }).then(function(){
+    toast("☁️ "+toUpload.length+" image"+(toUpload.length>1?"s":"")+" synchronisée"+(toUpload.length>1?"s":"")+" !",3000);
+  }).catch(function(e){
+    syncStatus="error";syncMsg=e.message||"Erreur upload";renderSyncUI();
+  });
+}
+
 function cloudPush(silent){
   if(!syncCfg.enabled)return Promise.resolve();
   syncStatus="syncing";syncMsg=syncCfg.imgbbKey?"Upload images...":"";if(!silent)renderSyncUI();
@@ -324,6 +352,7 @@ function renderSyncConfig(){
     (syncCfg.binId?'💾 Sauvegarder & Sync':'🆕 Créer un Bin & Activer')+'</button>'+
     (syncCfg.enabled?'<button class="btn" style="padding:10px" onclick="cloudPull()">⬇️ Pull</button><button class="btn" style="padding:10px" onclick="cloudPush()">⬆️ Push</button>':'')+
     '</div>'+
+    (syncCfg.enabled&&syncCfg.imgbbKey?'<button onclick="uploadAllImages()" style="width:100%;margin-top:10px;padding:10px;border-radius:10px;border:1px solid #7C4DFF44;background:#7C4DFF15;color:#B39DDB;font-weight:700;font-size:13px;cursor:pointer">🖼️ Synchroniser toutes les images existantes</button>':'')+
     (syncCfg.enabled?'<div style="margin-top:10px;padding:10px;background:#2A2A3E;border-radius:10px;font-size:11px;color:#888"><div>📦 Bin: <code style="color:#B39DDB">'+esc(syncCfg.binId)+'</code></div>'+(syncCfg.imgbbKey?'<div style="margin-top:4px">🖼️ ImgBB: <span style="color:#4CAF50">Activé</span> — les images seront synchronisées</div>':'<div style="margin-top:4px">🖼️ ImgBB: <span style="color:#FF9800">Non configuré</span> — images en local uniquement</div>')+'<div style="margin-top:6px;color:#666">Copie le Bin ID + les clés API sur tes autres appareils</div></div>':'')+
     '</div>';
 }
