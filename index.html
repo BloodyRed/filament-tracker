@@ -30,6 +30,25 @@ label.lbl{font-size:12px;color:#AAA;margin-bottom:4px;display:block;font-weight:
 .filter-panel{padding:12px}
 .card-list .status-col{display:none!important}
 .card-list .rating-inline{display:inline-block!important}
+.spool-grid{grid-template-columns:repeat(3,1fr);gap:6px}
+.card-grid{padding:8px;border-radius:12px}
+.card-grid .spool-icon-grid{width:48px;height:48px;border-radius:10px;margin-bottom:4px}
+.card-grid .spool-img-grid{width:48px;height:48px;border-radius:10px}
+.card-grid .grid-extras{display:none!important}
+.card-grid .color-name{font-size:11px}
+.card-grid .brand-type{font-size:9px;margin-top:1px}
+.card-grid .edit-btn{font-size:12px;top:4px!important;right:4px!important;padding:2px}
+}
+@media(max-width:380px){
+.spool-grid{grid-template-columns:repeat(2,1fr);gap:5px}
+.card-grid{padding:6px;border-radius:10px}
+.card-grid .spool-icon-grid{width:36px;height:36px;border-radius:8px;margin-bottom:2px}
+.card-grid .spool-img-grid{width:36px;height:36px;border-radius:8px}
+.card-grid .color-name{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.card-grid .brand-type{font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.card-grid .edit-btn{font-size:10px;top:2px!important;right:2px!important;padding:1px}
+.card-grid .pastille{width:10px;height:10px}
+.card-grid .select-checkbox{width:16px;height:16px;font-size:9px;top:4px;left:4px}
 }
 h1{font-size:26px;font-weight:800;background:linear-gradient(135deg,#7C4DFF,#00BCD4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px}
@@ -598,13 +617,14 @@ function renderSpoolGrid(s){
   var cardTitle=s.notes?'title="📝 Note: '+esc(s.notes)+'"':'';
   return'<div class="'+cls+'" '+click+' '+cardTitle+'>'+renderCheckbox(s.id,sel)+
     '<button class="edit-btn" style="position:absolute;top:8px;right:8px" onclick="openEdit('+s.id+',event)">✏️</button>'+
-    '<div style="position:relative;display:inline-block">'+renderSpoolIcon(s,'spool-icon-grid')+'<div style="position:absolute;top:4px;left:4px">'+renderStatusBadge(s,'top:100%;left:0;margin-top:4px')+'</div></div>'+
+    '<div style="position:relative;display:inline-block">'+renderSpoolIcon(s,'spool-icon-grid')+'</div>'+
     '<div class="color-name" style="font-size:13px;margin-top:4px">'+esc(s.color)+'</div><div class="brand-type">'+esc(s.brand)+' · '+esc(s.type)+'</div>'+
+    '<div class="grid-extras">'+
     '<div style="display:flex;justify-content:center;margin-top:6px">'+renderQty(s)+'</div>'+
     '<div class="specs-grid">🌡️'+esc(s.tempPrint)+'</div><div class="specs-grid">🛏️'+esc(s.bedTemp||"N/A")+' 💨'+esc(s.drying)+(s.speed?' 🚀'+esc(s.speed):'')+'</div>'+
     (s.notes?'<div class="notes-line" style="font-size:10px">📝 '+esc(s.notes)+'</div>':'')+
     '<div class="progress-bar" style="height:4px;margin-top:8px"><div class="progress-fill" style="width:'+statusPct(s)+'%;background:'+st.border+';height:100%"></div></div>'+
-    '<div class="progress-text">'+s.pct+'%</div></div>';
+    '<div class="progress-text">'+s.pct+'%</div></div></div>';
 }
 
 // ── Brand dropdown ──
