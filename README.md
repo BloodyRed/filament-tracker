@@ -1,81 +1,120 @@
 # 🧵 Filament Tracker
 
-A Progressive Web App (PWA) for managing your 3D printer filament inventory. Single-file HTML app — no server, no dependencies, no framework.
+Application web (PWA) mono-fichier pour gérer ton inventaire de filaments d'impression 3D. Bilingue (FR/EN), fonctionne hors ligne, synchronisation cloud optionnelle et intégration Klipper/Moonraker.
 
-## Features
+**Version actuelle : v2.0.0**
 
-### Inventory Management
-- **Add, edit, delete** filaments with full details (brand, type, color, hex, temperatures, speed, drying, notes)
-- **Spool quantity** tracking with inline +/− controls
-- **Status system** — New, In Use, Finished (auto-sets qty to 0 when finished)
-- **Rating system** — Bad, Good, Favorite
-- **Duplicate detection** — same color/brand/type auto-merges by adding qty
-- **Photo upload** with color hex pastille overlay
-- **Custom brands** — unknown brands auto-added to the list
+---
 
-### Views & Filters
-- **List / Grid** toggle
-- **Image / Color hex** toggle
-- **Multi-select filters** — filter by multiple brands, types, and statuses simultaneously
-- **Sort** by hue, color, brand, type, percentage, quantity, status, or rating
-- **Search** with instant results
-- **Out-of-stock** filaments (qty=0) displayed greyed out
+## ✨ Fonctionnalités
 
-### Project Palette
-- **Pin filaments** to a project palette from the inventory
-- **Dedicated project tab** showing selected filaments with full specs
-- **Color swatch bar** for quick visual reference
+### Inventaire
+- Ajout, édition, duplication et suppression de filaments
+- Champs détaillés : couleur (avec opacité), marque, type, code, températures (buse/lit), séchage, vitesse, nombre de rouleaux, statut, avis, notes, photo
+- Détection automatique des doublons (fusion des quantités)
+- Valeurs par défaut de température pré-remplies selon le type de filament
+- Statut cliquable (Neuf / En cours / Terminé) et système d'avis (👎 👍 ⭐)
+- Contrôle de quantité et pourcentage restant avec estimation du poids en grammes
+
+### Vues et organisation
+- Deux modes d'affichage : liste détaillée et grille compacte
+- Recherche instantanée avec bouton d'effacement
+- Filtres multi-sélection : marque, type, statut, % restant
+- Tri : teinte, couleur, marque, type, % restant, rouleaux, statut, avis
+- Sélection multiple pour export/suppression par lot
+
+### Projets
+- Création de plusieurs projets nommés
+- Sélection de filaments par projet (mode 📌)
+- Vue palette avec pastilles de couleur et détails complets
+- Sur grand écran : inventaire et projet affichés côte à côte
+- Sur mobile : navigation par onglets
 
 ### Import / Export
-- **JSON import** with duplicate merging
-- **JSON & CSV export** (full inventory or selection)
-- **Bulk select** mode for multi-operations
+- Import de fichiers `.json` et `.csv`
+- Export CSV (inventaire complet ou sélection)
+- Export JSON de la sélection
 
-### Mobile & PWA
-- **Installable** as a standalone app on Android & iOS
-- **Offline capable** via Service Worker
-- **Responsive** sticky toolbar, compact stats on mobile
-- **Status badge hidden** on mobile, replaced by colored progress bar
+### Synchronisation cloud (optionnelle)
+- Données synchronisées via [JSONBin.io](https://jsonbin.io) (gratuit)
+- Images hébergées via [ImgBB](https://api.imgbb.com) (gratuit)
+- Sync automatique à chaque sauvegarde + au chargement
+- Push/Pull manuel disponible
 
-## Quick Start
+### Intégration Klipper / Moonraker
+- Connexion à ton imprimante pour déduire automatiquement le filament utilisé
+- Match automatique via le nom du profil slicer (OrcaSlicer)
+- Mise à jour du % restant après chaque impression terminée
 
-### Option 1 — Local
-1. Download `index.html`
-2. Open in any browser
+### Autres
+- Application installable (PWA) sur mobile et desktop
+- Fonctionne hors ligne
+- Bilingue français / anglais (toggle ou paramètre URL `?lang=fr`)
+- Sauvegarde automatique dans le navigateur
 
-### Option 2 — GitHub Pages
-1. Create a repo on GitHub
-2. Add `index.html` to the root
-3. Enable GitHub Pages (Settings → Pages → Deploy from `main`)
-4. Access at `https://your-username.github.io/your-repo/`
-5. On mobile Chrome, tap "Install" or "Add to Home Screen"
+---
 
-## Data Storage
+## 🚀 Installation
 
-All data is stored in **localStorage** — nothing leaves your device.
+C'est un fichier HTML unique — aucune dépendance, aucune installation de serveur nécessaire.
 
-| Key | Content |
-|---|---|
-| `ft-data` | Filament inventory (without images) |
-| `ft-brands` | Custom brand list |
-| `ft-palette` | Project palette selection |
-| `fi-{id}` | Individual filament photos (base64) |
+1. Télécharge le fichier `index.html`
+2. Héberge-le sur n'importe quel hébergement statique (GitHub Pages, Netlify, Vercel, etc.) ou ouvre-le directement dans ton navigateur
+3. C'est prêt !
 
-## Tech Stack
+Pour l'installer comme application, ouvre le site puis utilise « Installer » depuis ton navigateur (bannière automatique ou menu du navigateur).
 
-- **Zero dependencies** — vanilla HTML/CSS/JS
-- **Single file** — everything in one `index.html`
-- **PWA** — manifest + service worker generated at runtime
-- **~45KB** total (uncompressed)
+---
 
-## Default Filaments
+## ⚙️ Configuration
 
-Ships with 6 Bambu Lab sample filaments (PLA Matte, PLA Basic, PLA Silk+). Use 🔄 Reset to restore defaults.
+### Synchronisation cloud
 
-## Version
+1. Clique sur le bouton ☁️
+2. Crée un compte gratuit sur [jsonbin.io](https://jsonbin.io) et copie ta clé API (X-Master-Key)
+3. Laisse le champ Bin ID vide et clique « Créer un Bin & Activer »
+4. (Optionnel) Ajoute une clé [ImgBB](https://api.imgbb.com) pour synchroniser aussi les images
+5. Sur tes autres appareils, entre la même clé API + le Bin ID affiché
 
-**v2.0.0**
+### Intégration Klipper
 
-## License
+1. Ajoute le nom du profil slicer (ex : `Bambu Lab PLA Matte @Snapmaker`) dans le champ « Profil Slicer » de chaque filament
+2. Clique sur le bouton 🖨️ et entre l'URL de ton Moonraker (ex : `http://192.168.1.50:7125`)
+3. Autorise ton domaine dans `cors_domains` de `moonraker.conf`
+4. Clique « Sauvegarder & Tester »
 
-MIT
+Le filament utilisé sera déduit automatiquement du % restant après chaque impression complétée.
+
+---
+
+## 🎨 Utilisation des projets
+
+**Grand écran :** L'inventaire et le projet s'affichent côte à côte. Clique directement sur les filaments pour les ajouter au projet actif.
+
+**Mobile :** Utilise les onglets 📦 Inventaire / 🎨 Projet. Active le bouton 📌 dans l'inventaire pour sélectionner des filaments.
+
+- Crée plusieurs projets avec « + Nouveau »
+- Renomme chaque projet directement dans le champ texte
+- Change de projet actif en cliquant sur sa pastille
+
+---
+
+## 🛠️ Stack technique
+
+- HTML / CSS / JavaScript vanilla (aucun framework)
+- Fichier unique, ~2500 lignes
+- Stockage : `localStorage` (données + images en cache local)
+- PWA avec service worker et manifest intégrés
+- APIs externes optionnelles : JSONBin.io, ImgBB, Moonraker
+
+---
+
+## 📝 Notes
+
+- Les données sont stockées localement dans ton navigateur. Sans synchronisation cloud, elles ne sont pas partagées entre appareils.
+- La synchronisation cloud et Klipper sont entièrement optionnelles.
+- Pour changer la version affichée, modifie la variable `APP_VERSION` en haut du script.
+
+---
+
+*Développé pour la communauté de l'impression 3D 🖨️*
